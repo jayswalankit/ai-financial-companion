@@ -32,6 +32,10 @@ build/
 ### VS Code ###
 .vscode/
 
-## ignoring Spring config
-application.yaml
-application-*.yaml
+## 🔐 Spring config (IMPORTANT)
+application*.yaml
+application*.yml
+
+## 🔐 Logs
+logs/
+*.log

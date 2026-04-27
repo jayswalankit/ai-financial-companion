@@ -1,4 +1,4 @@
-package com.aifinance.financialcompanion.config;
+package com.aifinance.financialcompanion.auth.config;
 
 import org.apache.logging.log4j.status.StatusLogger;
 import org.springframework.context.annotation.Bean;
