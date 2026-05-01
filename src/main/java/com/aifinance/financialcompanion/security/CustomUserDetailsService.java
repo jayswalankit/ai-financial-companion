@@ -1,4 +1,4 @@
-package com.aifinance.financialcompanion.auth.service;
+package com.aifinance.financialcompanion.security;
 
 import com.aifinance.financialcompanion.auth.entity.User;
 import com.aifinance.financialcompanion.auth.exceptions.UserNotFound;

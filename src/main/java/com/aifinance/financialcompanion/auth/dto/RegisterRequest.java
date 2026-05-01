@@ -1,5 +1,6 @@
 package com.aifinance.financialcompanion.auth.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -8,7 +9,8 @@ public record RegisterRequest (
         @NotBlank(message = "username is required")
         String username,
 
-        @NotBlank(message = "email is reequired")
+        @NotBlank(message = "email is required")
+        @Email
         String email,
 
         @NotBlank (message = "password is required")
