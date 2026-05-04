@@ -1,9 +1,10 @@
-package com.aifinance.financialcompanion.security;
+package com.aifinance.financialcompanion.security.jwt;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 public class JwtAuthenticationFiter extends OncePerRequestFilter {
 
@@ -40,22 +42,29 @@ public class JwtAuthenticationFiter extends OncePerRequestFilter {
         }
 
         String token = authorizedHeader.substring(BEARER_PREFIX.length());
-        String username = jwtService.extractUsername(token);
+        try {
+            String username = jwtService.extractUsername(token);
+             log.debug("Extract username from the token : {}", username);
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-        if(username != null && SecurityContextHolder.getContext().getAuthentication() == null ){
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                if (jwtService.isTokenValid(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }else {
+                    log.warn("Invalid JWT token for user: {}", username);
+                }
 
-            if(jwtService.isTokenValid(token , userDetails)){
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
 
+        } catch (RuntimeException e) {
+            log.error("JWT authentication failed: {}", e.getMessage(), e);
         }
         filterChain.doFilter(request,response);
     }

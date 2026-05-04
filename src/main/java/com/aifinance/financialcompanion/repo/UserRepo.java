@@ -1,6 +1,6 @@
-package com.aifinance.financialcompanion.auth.repo;
+package com.aifinance.financialcompanion.repo;
 
-import com.aifinance.financialcompanion.auth.entity.User;
+import com.aifinance.financialcompanion.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -5,7 +5,6 @@ import com.aifinance.financialcompanion.auth.dto.AuthResponse;
 import com.aifinance.financialcompanion.auth.dto.LoginRequest;
 import com.aifinance.financialcompanion.auth.dto.RegisterRequest;
 import com.aifinance.financialcompanion.auth.dto.RegisterResponse;
-import com.aifinance.financialcompanion.auth.repo.UserRepo;
 import com.aifinance.financialcompanion.auth.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

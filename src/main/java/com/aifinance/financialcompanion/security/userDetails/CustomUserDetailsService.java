@@ -1,8 +1,8 @@
-package com.aifinance.financialcompanion.security;
+package com.aifinance.financialcompanion.security.userDetails;
 
-import com.aifinance.financialcompanion.auth.entity.User;
-import com.aifinance.financialcompanion.auth.exceptions.UserNotFound;
-import com.aifinance.financialcompanion.auth.repo.UserRepo;
+import com.aifinance.financialcompanion.entity.User;
+import com.aifinance.financialcompanion.exceptions.UserNotFound;
+import com.aifinance.financialcompanion.repo.UserRepo;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

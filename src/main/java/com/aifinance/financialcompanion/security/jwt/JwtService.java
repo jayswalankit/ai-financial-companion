@@ -1,8 +1,9 @@
-package com.aifinance.financialcompanion.security;
+package com.aifinance.financialcompanion.security.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import java.time.Instant;
 import java.util.Date;
 
 @Service
+@Slf4j
 public class JwtService {
 
     private final SecretKey signingKey;
@@ -26,6 +28,7 @@ public class JwtService {
     }
 
     public String generateToken(UserDetails userDetails) {
+        log.info("Generating token for user: {}", userDetails.getUsername());
         Instant now = Instant.now();
 
         return Jwts.builder()
@@ -42,7 +45,11 @@ public class JwtService {
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+
+        boolean valid =  username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+
+        log.debug("Token validation result for {}: {}", username, valid);
+        return valid;
     }
 
     private boolean isTokenExpired(String token) {

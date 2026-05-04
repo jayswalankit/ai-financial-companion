@@ -1,8 +1,7 @@
-package com.aifinance.financialcompanion.auth.entity;
-
-import com.aifinance.financialcompanion.auth.enums.Role;
+package com.aifinance.financialcompanion.entity;
 
 
+import com.aifinance.financialcompanion.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,6 +30,6 @@ public class User {
 
         @Enumerated(EnumType.STRING)  // tell us that enums tyme jo hai so String form me hai warna 0,1 me form mr hota
         @Column(nullable = false)
-          private  Role  role;
+          private Role role;
 
 }

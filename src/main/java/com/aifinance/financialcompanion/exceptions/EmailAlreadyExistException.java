@@ -1,4 +1,4 @@
-package com.aifinance.financialcompanion.auth.exceptions;
+package com.aifinance.financialcompanion.exceptions;
 
 public class EmailAlreadyExistException extends  RuntimeException{
 
