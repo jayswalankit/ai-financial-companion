@@ -63,6 +63,8 @@ public class AuthService {
         String email = request.email().trim().toLowerCase();
 
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email,request.password()));
+        // ye authentication.authenticate internally customUserDetailsService ko implement karata hai and wo apna method loadUserByUsername method se db me email khojta hai email  mila to password jo encrypted hai so match hua ya nhi
+
 
         User user = userRepo.findByEmail(email)
                 .orElseThrow(()->new UserNotFound("User not found "));

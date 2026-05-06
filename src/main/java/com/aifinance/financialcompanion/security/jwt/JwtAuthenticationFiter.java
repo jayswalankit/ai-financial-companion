@@ -50,10 +50,10 @@ public class JwtAuthenticationFiter extends OncePerRequestFilter {
 
                 if (jwtService.isTokenValid(token, userDetails)) {
                     UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    userDetails.getAuthorities()
+                            new UsernamePasswordAuthenticationToken(  // Yeh ek "ID Card" jaisa object hai jo Spring Security ko batata hai — "Yeh user authenticated hai, inki yeh details hain, aur inke yeh permissions hain"
+                                    userDetails, // kaun hai
+                                    null,       // password kya hai
+                                    userDetails.getAuthorities() // kya kya kar sakta hai
                             );
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);

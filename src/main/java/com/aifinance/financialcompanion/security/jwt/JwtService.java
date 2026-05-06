@@ -43,13 +43,24 @@ public class JwtService {
         return extractAllClaims(token).getSubject();
     }
 
-    public boolean isTokenValid(String token, UserDetails userDetails) {
-        String username = extractUsername(token);
+    public boolean isTokenValid(String token, UserDetails userDetails){
+        try {
+            final String username = extractUsername(token);
 
-        boolean valid =  username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+            boolean valid = username.equals(userDetails.getUsername()) && !isTokenExpired(token);
 
-        log.debug("Token validation result for {}: {}", username, valid);
-        return valid;
+            log.debug("Token validation result for {}: {}", username, valid);
+
+            return valid;
+
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            log.warn("Token expired: {}", e.getMessage());
+            return false;
+
+        } catch (io.jsonwebtoken.JwtException e) {
+            log.error("Invalid JWT: {}", e.getMessage());
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
