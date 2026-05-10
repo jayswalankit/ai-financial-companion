@@ -12,7 +12,11 @@ import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -28,8 +32,7 @@ public class ExpenseService {
 
         log.info("Creating expense for userId = {} , title = {} , categoryId = {}", userId, request.title(), request.categoryId());
 
-        User user = userRepo.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User is not found"));
+        User user = getAuthenticatedUser(currentUser);
 
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new IllegalArgumentException("Category is not found"));
@@ -54,6 +57,12 @@ public class ExpenseService {
         return mapToResponse(savedExpense);
     }
 
+    private User  getAuthenticatedUser(CustomUserDetails currentUser) {
+
+        return userRepo.findById(currentUser.getUserId())
+                .orElseThrow(()->new IllegalArgumentException("user is not found"));
+    }
+
     private ExpenseResponse mapToResponse(Expense expense) {
         return new ExpenseResponse(
                 expense.getId(),
@@ -74,5 +83,39 @@ public class ExpenseService {
         return categoryOwner != null && categoryOwner.getId().equals(userId);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ExpenseResponse> getAllExpenses (CustomUserDetails currentUser , Pageable pageable){
 
+        User user = getAuthenticatedUser(currentUser);
+
+        log.info("Fetching expenses for UserId = {} , page = {} , size ={} , sort = {}"
+        , user.getId()
+        , pageable.getPageNumber()
+        , pageable.getPageSize()
+        , pageable.getSort());
+
+        Page<ExpenseResponse> expensesPage = expenseRepository.findByUser(user , pageable)
+                .map(this::mapToResponse);
+
+        log.info("Fetched response for userID = {} , returnItems = {} , totalItems = {}"
+        ,user.getId()
+        ,expensesPage.getNumberOfElements()
+        ,expensesPage.getTotalElements());
+
+        return expensesPage;
+    }
+
+    public ExpenseResponse getExpenseById(Long expenseId , CustomUserDetails currentUser) {
+        User user = getAuthenticatedUser(currentUser);
+
+        log.info("Fetching expense by expense id  userId = {} , expenseId = {}", user.getId(), expenseId);
+
+        Expense expense = expenseRepository.findByIdAndUser(expenseId, user).
+                orElseThrow(() -> {
+                    log.warn("Expense not found or not owned userId = {} , expenseId ={}", user.getId(), expenseId);
+                    return new IllegalArgumentException("Expense not found");
+                });
+        log.info("Expense fetched successfully userId ={} , expenseId = {} " , user.getId(), expenseId);
+        return mapToResponse(expense);
+    }
 }
