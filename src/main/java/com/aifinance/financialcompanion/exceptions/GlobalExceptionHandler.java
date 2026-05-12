@@ -3,11 +3,13 @@ package com.aifinance.financialcompanion.exceptions;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -67,6 +69,30 @@ public class GlobalExceptionHandler {
                 "Internal Server Error",
                 "Something went wrong. Please try again later."
         );
+    }
+
+    @ExceptionHandler(ExpenseNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleExpenseNotFound(ExpenseNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(errorResponse(HttpStatus.NOT_FOUND, exception.getMessage(), null));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException exception) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(errorResponse(HttpStatus.FORBIDDEN, exception.getMessage(), null));
+    }
+
+    private Map<String, Object> errorResponse(HttpStatus status, String message, Map<String, String> errors) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", Instant.now());
+        response.put("status", status.value());
+        response.put("error", status.getReasonPhrase());
+        response.put("message", message);
+        if (errors != null && !errors.isEmpty()) {
+            response.put("fieldErrors", errors);
+        }
+        return response;
     }
 
     // ─── Helper ──────────────────────────────────────────────────────────────
