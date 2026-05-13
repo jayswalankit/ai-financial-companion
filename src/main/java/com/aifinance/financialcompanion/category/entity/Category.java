@@ -2,9 +2,8 @@ package com.aifinance.financialcompanion.category.entity;
 
 import com.aifinance.financialcompanion.entity.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 @Entity
 @Table(
@@ -16,8 +15,7 @@ import lombok.NoArgsConstructor;
         }
 )
 
-@NoArgsConstructor
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Data
 public class Category {
     @Id
@@ -39,4 +37,10 @@ public class Category {
     private User user;
 
 
+    public Category(String name,  CategoryType type, boolean predefined, User user) {
+        this.name = name;
+        this.type = type;
+        this.predefined = predefined;
+        this.user = user;
+    }
 }
