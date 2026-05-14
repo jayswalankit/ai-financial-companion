@@ -7,6 +7,7 @@ import com.aifinance.financialcompanion.category.entity.Category;
 import com.aifinance.financialcompanion.category.repo.CategoryRepository;
 import com.aifinance.financialcompanion.entity.User;
 import com.aifinance.financialcompanion.exceptions.CategoryNotFoundException;
+import com.aifinance.financialcompanion.exceptions.DuplicateCategoryName;
 import com.aifinance.financialcompanion.expense.repo.ExpenseRepository;
 import com.aifinance.financialcompanion.repo.UserRepo;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
@@ -37,12 +38,12 @@ public class CategoryService {
 
        if(categoryRepository.existsByPredefinedTrueAndNameIgnoreCase(normalizedName)){
            log.warn("Category cannot created due to the predefined name conflict for userId = {}, categoryName = {}",user.getId(),normalizedName);
-           throw  new IllegalArgumentException("Category name is already present in predefined  category");
+           throw  new DuplicateCategoryName("Category name is already present in predefined  category");
        }
 
        if(categoryRepository.existsByUserAndNameIgnoreCase(user,normalizedName)){
            log.warn("Category cannot be created due to duplicate userCategory for userId ={}, categoryName = {}",user.getId(),normalizedName);
-           throw new IllegalArgumentException("Category name is already present is userCategories  List");
+           throw new DuplicateCategoryName("Category name is already present is userCategories  List");
        }
 
        Category category = new Category(
@@ -94,7 +95,7 @@ public class CategoryService {
 
         if(categoryRepository.existsByUserAndNameIgnoreCaseAndIdNot(user,normalizedName,categoryId)){
            log.warn("category updated block due to category name already present for userId = {},categoryId = {}",user.getId(),categoryId);
-            throw new IllegalArgumentException(
+            throw new DuplicateCategoryName(
                     "Category name already exists"
             );
         }
@@ -118,7 +119,7 @@ public class CategoryService {
                     user.getId(),
                     categoryId);
 
-            throw new IllegalArgumentException(
+            throw new DuplicateCategoryName(
                     "Category cannot be deleted because expenses exist for this category"
             );
         }
