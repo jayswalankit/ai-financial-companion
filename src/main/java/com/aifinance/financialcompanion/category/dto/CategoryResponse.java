@@ -1,6 +1,6 @@
 package com.aifinance.financialcompanion.category.dto;
 
-import com.aifinance.financialcompanion.category.entity.CategoryType;
+import com.aifinance.financialcompanion.enums.CategoryType;
 
 public record CategoryResponse(
         Long id,

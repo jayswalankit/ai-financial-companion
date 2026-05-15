@@ -1,6 +1,7 @@
 package com.aifinance.financialcompanion.category.entity;
 
 import com.aifinance.financialcompanion.entity.User;
+import com.aifinance.financialcompanion.enums.CategoryType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;

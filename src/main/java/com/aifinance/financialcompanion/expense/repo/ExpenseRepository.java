@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 @Repository
@@ -18,4 +19,18 @@ public interface ExpenseRepository extends JpaRepository<Expense , Long> {
     Optional<Expense> findByIdAndUser(Long id , User user);
 
     boolean existsByCategory(Category category);
+
+    Page<Expense> findByUserAndCategoryIdAndTitleContainingIgnoreCaseAndExpenseDateBetween(User user, Long categoryId, String title, LocalDate startDate, LocalDate endDate, Pageable pageable);
+
+    Page<Expense> findByUserAndCategoryIdAndTitleContainingIgnoreCase(User user, Long categoryId, String keyword, Pageable pageable);
+
+    Page<Expense> findByUserAndCategoryIdAndExpenseDateBetween(User user, Long categoryId, LocalDate startDate, LocalDate endDate, Pageable pageable);
+
+    Page<Expense> findByUserAndTitleContainingIgnoreCaseAndExpenseDateBetween(User user, String keyword, LocalDate startDate, LocalDate endDate, Pageable pageable);
+
+    Page<Expense> findByUserAndCategoryId(User user, Long categoryId, Pageable pageable);
+
+    Page<Expense> findByUserAndTitleContainingIgnoreCase(User user, String keyword, Pageable pageable);
+
+    Page<Expense> findByUserAndExpenseDateBetween(User user, LocalDate startDate, LocalDate endDate, Pageable pageable);
 }
