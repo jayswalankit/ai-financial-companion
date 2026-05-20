@@ -47,7 +47,7 @@ public class ExpenseService {
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Category is not found"));
 
-        if (isCategoryAllowedForUser(category, userId)) {
+        if (isCategoryNotAllowedForUser(category, userId)) {
             log.warn("Category ownership validation failed for userId={}, categoryId={}", userId, request.categoryId());
 
             throw new AccessDeniedException("Category is not allowed for this user");
@@ -140,12 +140,12 @@ public class ExpenseService {
                  return new CategoryNotFoundException("Category not found ");
              });
 
-    if(isCategoryAllowedForUser(category, user.getId())){
+    if(isCategoryNotAllowedForUser(category, user.getId())){
         log.warn("Category ownership validation failure for userId ={},expenseId ={},categoryId ={}", user.getId(),expenseId ,category.getId());
         throw new AccessDeniedException("Category not belong to this user");
     }
        Expense expense = getExpenseForCurrentUser(expenseId,currentUser);
-       expense.setTitle(request.title());
+       expense.setTitle(request.title().trim());
        expense.setAmount(request.amount());
        expense.setDescription(request.description());
        expense.setExpenseDate(request.expenseDate());
@@ -176,7 +176,7 @@ public class ExpenseService {
                 .orElseThrow(()->new UserNotFound("user is not found"));
     }
 
-    private boolean isCategoryAllowedForUser(Category category , Long userId){
+    private boolean isCategoryNotAllowedForUser(Category category , Long userId){
         if(category.isPredefined()){
             return false;
         }
@@ -295,22 +295,26 @@ public class ExpenseService {
      return normalizedKeyword.isEmpty() ? null : normalizedKeyword;
     }
 
+    private static final int MAX_PAGE_SIZE = 100;
+
+
     private Pageable resolvePageable(Pageable pageable){
+
+        int pageNumber = Math.max(pageable.getPageNumber(), 0);
+        int pageSize = Math.max(1, Math.min(pageable.getPageSize(), MAX_PAGE_SIZE));
 
         Sort defaultSort = Sort.by(
                 Sort.Order.desc("expenseDate"),
                 Sort.Order.desc("createdAt")
         );
 
-        Sort requestSort = pageable.getSort();
-        if(requestSort == null || requestSort.isUnsorted()){
-            return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),defaultSort);
+        Sort sort  = pageable.getSort().isSorted()
+                ? pageable.getSort() : defaultSort ;
+
+        if (sort.getOrderFor("createdAt") == null) {
+            sort = sort.and(Sort.by(Sort.Order.desc("createdAt")));
         }
 
-        Sort resolvedSort = requestSort.getOrderFor("createdAt") == null?
-                requestSort.and(Sort.by(Sort.Order.desc("createdAt")))
-                :requestSort;
-
-        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),resolvedSort);
+        return PageRequest.of(pageNumber,pageSize,sort);
     }
 }
