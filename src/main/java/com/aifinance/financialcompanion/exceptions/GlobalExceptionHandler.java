@@ -9,7 +9,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,9 +17,9 @@ import java.util.Map;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    // ─────────────────────────────────────────────────────────────
-    // Standard Error Response DTO
-    // ─────────────────────────────────────────────────────────────
+    // =========================================================
+    // STANDARD ERROR RESPONSE
+    // =========================================================
 
     public record ErrorResponse(
             int status,
@@ -30,16 +29,18 @@ public class GlobalExceptionHandler {
     ) {
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Email Already Exists
-    // ─────────────────────────────────────────────────────────────
+
+
+    // =========================================================
+    // EMAIL ALREADY EXISTS
+    // =========================================================
 
     @ExceptionHandler(EmailAlreadyExistException.class)
     public ResponseEntity<ErrorResponse> handleEmailAlreadyExist(
             EmailAlreadyExistException exception
     ) {
 
-        log.warn("Email conflict occurred: {}", exception.getMessage());
+        log.warn("Email already exists: {}", exception.getMessage());
 
         return buildError(
                 HttpStatus.CONFLICT,
@@ -48,9 +49,11 @@ public class GlobalExceptionHandler {
         );
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // User Not Found
-    // ─────────────────────────────────────────────────────────────
+
+
+    // =========================================================
+    // USER NOT FOUND
+    // =========================================================
 
     @ExceptionHandler(UserNotFound.class)
     public ResponseEntity<ErrorResponse> handleUserNotFound(
@@ -66,85 +69,131 @@ public class GlobalExceptionHandler {
         );
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Expense Not Found
-    // ─────────────────────────────────────────────────────────────
+
+
+    // =========================================================
+    // EXPENSE NOT FOUND
+    // =========================================================
 
     @ExceptionHandler(ExpenseNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleExpenseNotFound(
+    public ResponseEntity<ErrorResponse> handleExpenseNotFound(
             ExpenseNotFoundException exception
     ) {
 
         log.warn("Expense not found: {}", exception.getMessage());
 
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(errorResponse(
-                        HttpStatus.NOT_FOUND,
-                        exception.getMessage(),
-                        null
-                ));
+        return buildError(
+                HttpStatus.NOT_FOUND,
+                "Expense Not Found",
+                exception.getMessage()
+        );
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Category Not Found
-    // ─────────────────────────────────────────────────────────────
+
+
+    // =========================================================
+    // CATEGORY NOT FOUND
+    // =========================================================
 
     @ExceptionHandler(CategoryNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleCategoryNotFound(
+    public ResponseEntity<ErrorResponse> handleCategoryNotFound(
             CategoryNotFoundException exception
     ) {
 
         log.warn("Category not found: {}", exception.getMessage());
 
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(errorResponse(
-                        HttpStatus.NOT_FOUND,
-                        exception.getMessage(),
-                        null
-                ));
+        return buildError(
+                HttpStatus.NOT_FOUND,
+                "Category Not Found",
+                exception.getMessage()
+        );
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Invalid Date Range
-    // ─────────────────────────────────────────────────────────────
+
+
+    // =========================================================
+    // DUPLICATE CATEGORY NAME
+    // =========================================================
+
+    @ExceptionHandler(DuplicateCategoryName.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateCategoryName(
+            DuplicateCategoryName exception
+    ) {
+
+        log.warn("Duplicate category name: {}", exception.getMessage());
+
+        return buildError(
+                HttpStatus.CONFLICT,
+                "Duplicate Category Name",
+                exception.getMessage()
+        );
+    }
+
+
+
+    // =========================================================
+    // INVALID DATE RANGE
+    // =========================================================
 
     @ExceptionHandler(InvalidDateRangeException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidDateRange(
+    public ResponseEntity<ErrorResponse> handleInvalidDateRange(
             InvalidDateRangeException exception
     ) {
 
-        log.warn("Invalid date range provided: {}", exception.getMessage());
+        log.warn("Invalid date range: {}", exception.getMessage());
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(errorResponse(
-                        HttpStatus.BAD_REQUEST,
-                        exception.getMessage(),
-                        null
-                ));
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                "Invalid Date Range",
+                exception.getMessage()
+        );
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Access Denied
-    // ─────────────────────────────────────────────────────────────
+
+
+    // =========================================================
+    // MONTHLY BUDGET EXCEPTION
+    // =========================================================
+
+    @ExceptionHandler(MonthlyBudgetException.class)
+    public ResponseEntity<ErrorResponse> handleMonthlyBudgetException(
+            MonthlyBudgetException exception
+    ) {
+
+        log.warn("Monthly budget exception: {}", exception.getMessage());
+
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                "Monthly Budget Error",
+                exception.getMessage()
+        );
+    }
+
+
+
+    // =========================================================
+    // ACCESS DENIED
+    // =========================================================
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, Object>> handleAccessDenied(
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
             AccessDeniedException exception
     ) {
 
         log.warn("Access denied: {}", exception.getMessage());
 
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(errorResponse(
-                        HttpStatus.FORBIDDEN,
-                        exception.getMessage(),
-                        null
-                ));
+        return buildError(
+                HttpStatus.FORBIDDEN,
+                "Access Denied",
+                exception.getMessage()
+        );
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Validation Errors
-    // ─────────────────────────────────────────────────────────────
+
+
+    // =========================================================
+    // VALIDATION ERRORS
+    // =========================================================
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(
@@ -154,29 +203,62 @@ public class GlobalExceptionHandler {
         Map<String, String> fieldErrors = new HashMap<>();
 
         for (FieldError error : exception.getBindingResult().getFieldErrors()) {
-            fieldErrors.put(error.getField(), error.getDefaultMessage());
+
+            fieldErrors.put(
+                    error.getField(),
+                    error.getDefaultMessage()
+            );
         }
 
         log.warn("Validation failed: {}", fieldErrors);
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(errorResponse(
-                        HttpStatus.BAD_REQUEST,
-                        "Validation failed",
-                        fieldErrors
-                ));
+        Map<String, Object> response = new HashMap<>();
+
+        response.put("status", HttpStatus.BAD_REQUEST.value());
+        response.put("error", "Validation Failed");
+        response.put("message", "Invalid request body");
+        response.put("fieldErrors", fieldErrors);
+        response.put("timestamp", LocalDateTime.now());
+
+        return ResponseEntity.badRequest().body(response);
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Generic / Unexpected Exception
-    // ─────────────────────────────────────────────────────────────
+
+
+    // =========================================================
+    // ILLEGAL ARGUMENT EXCEPTION
+    // =========================================================
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException exception
+    ) {
+
+        log.warn("Illegal argument: {}", exception.getMessage());
+
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                "Bad Request",
+                exception.getMessage()
+        );
+    }
+
+
+
+    // =========================================================
+    // GENERIC EXCEPTION
+    // =========================================================
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception exception
     ) {
 
-        log.error("Unexpected error occurred: {}", exception.getMessage(), exception);
+        log.error(
+                "Unexpected error occurred: {}",
+                exception.getMessage(),
+                exception
+        );
 
         return buildError(
                 HttpStatus.INTERNAL_SERVER_ERROR,
@@ -185,33 +267,11 @@ public class GlobalExceptionHandler {
         );
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Common Error Response Builder
-    // ─────────────────────────────────────────────────────────────
 
-    private Map<String, Object> errorResponse(
-            HttpStatus status,
-            String message,
-            Map<String, String> fieldErrors
-    ) {
 
-        Map<String, Object> response = new HashMap<>();
-
-        response.put("timestamp", Instant.now());
-        response.put("status", status.value());
-        response.put("error", status.getReasonPhrase());
-        response.put("message", message);
-
-        if (fieldErrors != null && !fieldErrors.isEmpty()) {
-            response.put("fieldErrors", fieldErrors);
-        }
-
-        return response;
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // Standard ErrorResponse Builder
-    // ─────────────────────────────────────────────────────────────
+    // =========================================================
+    // COMMON ERROR BUILDER
+    // =========================================================
 
     private ResponseEntity<ErrorResponse> buildError(
             HttpStatus status,

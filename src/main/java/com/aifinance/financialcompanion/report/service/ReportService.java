@@ -1,6 +1,7 @@
 package com.aifinance.financialcompanion.report.service;
 
 import com.aifinance.financialcompanion.entity.User;
+import com.aifinance.financialcompanion.exceptions.MonthlyBudgetException;
 import com.aifinance.financialcompanion.exceptions.UserNotFound;
 import com.aifinance.financialcompanion.repo.UserRepo;
 import com.aifinance.financialcompanion.report.dto.*;
@@ -175,7 +176,7 @@ public List<WeeklyTrendResponse> getWeeklyTrend(CustomUserDetails  currentUser){
 
     private void validateMonthlyBudget(BigDecimal monthlyBudget){
         if(monthlyBudget == null || monthlyBudget.compareTo(BigDecimal.ZERO) <= 0){
-            throw new IllegalArgumentException("monthly budget must bbe greater than zero");
+            throw new MonthlyBudgetException("monthly budget must be greater than zero");
         }
     }
 
