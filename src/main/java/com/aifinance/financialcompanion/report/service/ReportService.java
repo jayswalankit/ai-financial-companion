@@ -3,9 +3,11 @@ package com.aifinance.financialcompanion.report.service;
 import com.aifinance.financialcompanion.entity.User;
 import com.aifinance.financialcompanion.exceptions.MonthlyBudgetException;
 import com.aifinance.financialcompanion.exceptions.UserNotFound;
+import com.aifinance.financialcompanion.expense.entity.Expense;
 import com.aifinance.financialcompanion.repo.UserRepo;
 import com.aifinance.financialcompanion.report.dto.*;
 import com.aifinance.financialcompanion.report.projection.CategoryExpenseProjection;
+import com.aifinance.financialcompanion.report.projection.CategoryGrowthProjection;
 import com.aifinance.financialcompanion.report.projection.WeeklyExpenseProjection;
 import com.aifinance.financialcompanion.report.repo.ReportRepository;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
@@ -19,6 +21,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.Year;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
@@ -49,11 +52,11 @@ public class ReportService {
 
     BigDecimal averageExpense = calculateAverageExpense(totalExpense,totalTransaction);
 
-    YearMonth currentMont = YearMonth.now();
+    YearMonth currentMonth = YearMonth.now();
 
-    BigDecimal currentMonthExpense = getMonthExpense(user,currentMont);
+    BigDecimal currentMonthExpense = getMonthExpense(user,currentMonth);
 
-    BigDecimal previousMonthExpense = getMonthExpense(user,currentMont.minusMonths(1));
+    BigDecimal previousMonthExpense = getMonthExpense(user,currentMonth.minusMonths(1));
 
     BigDecimal monthOverMonthDifference = currentMonthExpense.subtract(previousMonthExpense);
 
@@ -95,7 +98,7 @@ public class ReportService {
 
         String status = resolveSeverity(currentSpent,monthlyBudget);
 
-        log.info("Generated budget status for userId = {}, monthlyBudget = {}, currentSpent = {}, remainigBudget = {}, remainingDays = {}",user.getId(),
+        log.info("Generated budget status for userId = {}, monthlyBudget = {}, currentSpent = {}, remainingBudget = {}, remainingDays = {}",user.getId(),
                 monthlyBudget,
                 currentSpent,
                 remainingBudget,
@@ -130,7 +133,7 @@ public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser
 
         List<CategorySummaryResponse> topCategories = getTopCategoriesForUser(user);
         if(!topCategories.isEmpty()){
-            CategorySummaryResponse topCategory = topCategories.get(0);
+            CategorySummaryResponse topCategory = topCategories.getFirst();
             insights.add(new InsightResponse(
                     topCategory.categoryName() + "is one of your highest expense categories","INFO"
             ));
@@ -146,9 +149,201 @@ public List<WeeklyTrendResponse> getWeeklyTrend(CustomUserDetails  currentUser){
         return getWeeklyTrendByUser(user);
 }
 
+@Transactional(readOnly = true)
+public MonthlyComparisonResponse getMonthlyComparison(CustomUserDetails currentUser){
 
+        User user = getAuthenticatedUser(currentUser);
 
-    private User getAuthenticatedUser(CustomUserDetails currentUser){
+        YearMonth currentMonth = YearMonth.now();
+        YearMonth previousMonth = currentMonth.minusMonths(1);
+
+        BigDecimal currentMonthExpense = getMonthExpense(user,currentMonth);
+        BigDecimal previousMonthExpense = getMonthExpense(user,previousMonth);
+
+        BigDecimal percentageChange;
+
+        if(previousMonthExpense.compareTo(BigDecimal.ZERO) == 0){
+            percentageChange = BigDecimal.valueOf(100);
+        }
+        else{
+        percentageChange = currentMonthExpense.subtract(previousMonthExpense).divide(previousMonthExpense,MONEY_SCALE,RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+        }
+
+        String trend;
+
+        int comparison = currentMonthExpense.compareTo(previousMonthExpense);
+
+        if(comparison > 0){
+            trend = "INCREASED";
+        } else if (comparison < 0) {
+            trend = "DECREASED";
+        }
+        else{
+            trend = "SAME";
+        }
+
+        log.info("Generating MonthlyComparison of userId = {}",user.getId());
+
+        return new MonthlyComparisonResponse(currentMonthExpense,
+                previousMonthExpense,
+                percentageChange,
+                trend);
+}
+
+@Transactional(readOnly = true)
+public FinancialHealthResponse getFinancialHealth(CustomUserDetails currentUser, BigDecimal monthlyBudget){
+
+        validateMonthlyBudget(monthlyBudget);
+
+        User user = getAuthenticatedUser(currentUser);
+
+        YearMonth currentMonth = YearMonth.now();
+        BigDecimal totalSpent = getMonthExpense(user,currentMonth);
+
+        BigDecimal remainingBudget = monthlyBudget.subtract(totalSpent);
+
+        BigDecimal budgetUsagePercentage = totalSpent.multiply(BigDecimal.valueOf(100)).divide(monthlyBudget,MONEY_SCALE,RoundingMode.HALF_UP);
+
+        String financialStatus;
+
+        if(budgetUsagePercentage.compareTo(BigDecimal.valueOf(50)) <= 0){
+            financialStatus = "SAFE";
+        } else if (budgetUsagePercentage.compareTo(BigDecimal.valueOf(75)) <= 0) {
+            financialStatus = "MODERATE";
+        } else if (budgetUsagePercentage.compareTo(BigDecimal.valueOf(90)) <= 0) {
+            financialStatus = "WARNING";
+        }
+        else{
+            financialStatus = "RISKY";
+        }
+
+        log.info("GENERATING  financialHealth for userId = {}, monthlyBudget ={}, remainingBudget = {}, financialStatus = {}",user.getId(),monthlyBudget,remainingBudget,financialStatus);
+
+        return new FinancialHealthResponse(totalSpent,
+                monthlyBudget,
+                remainingBudget,
+                budgetUsagePercentage,
+                financialStatus);
+}
+
+@Transactional(readOnly = true)
+public SpendingPatternResponse getSpendingPattern(CustomUserDetails currentUser){
+
+        User user = getAuthenticatedUser(currentUser);
+
+        YearMonth currentMonth = YearMonth.now();
+
+        List<CategoryExpenseProjection>allTimeTopCategories = reportRepository.findTopCategoriesByUser(user,PageRequest.of(0,1));
+         String allTimeHighestSpendingCategory = "Not spending Yet";
+         BigDecimal allTimeHighestSpendingAmount = BigDecimal.ZERO;
+
+         if(!allTimeTopCategories.isEmpty()){
+             CategoryExpenseProjection allTimeTopCategory = allTimeTopCategories.getFirst();
+             allTimeHighestSpendingCategory = allTimeTopCategory.getCategoryName();
+             allTimeHighestSpendingAmount = allTimeTopCategory.getTotalAmount();
+         }
+
+         LocalDate startDate = currentMonth.atDay(1);
+         LocalDate endDate = currentMonth.atEndOfMonth();
+
+         List<CategoryExpenseProjection>monthlyTopCategories = reportRepository.findTopCategoriesByUserAndDateBetween(user,startDate,endDate,PageRequest.of(0,1));
+         String currentMonthHighestCategory = "Not spending Yet";
+         BigDecimal currentMonthHighestCategoryAmount = BigDecimal.ZERO;
+
+         if(!monthlyTopCategories.isEmpty()){
+             CategoryExpenseProjection monthlyTopCategory = monthlyTopCategories.getFirst();
+             currentMonthHighestCategory = monthlyTopCategory.getCategoryName();
+             currentMonthHighestCategoryAmount = safe(monthlyTopCategory.getTotalAmount());
+         }
+
+         BigDecimal monthTotalExpense = safe(reportRepository.getTotalExpenseByUserAndDateBetween(user,startDate,endDate));
+         int dayPassed = LocalDate.now().getDayOfMonth();
+
+         BigDecimal averageDailyExpenses = monthTotalExpense.divide(BigDecimal.valueOf(dayPassed),MONEY_SCALE,RoundingMode.HALF_UP);
+
+         BigDecimal highestSingleExpense = safe(reportRepository.getHighestExpenseByUserAndDateBetween(user,startDate,endDate));
+
+         LocalDate highestExpenseDate = null;
+
+         Expense topExpense = reportRepository.findTopExpenseByUserAndDateBetween(user,startDate,endDate);
+
+         if(topExpense != null){
+             highestExpenseDate = topExpense.getExpenseDate();
+         }
+
+         log.info("Generated spending pattern for userId = {}",user.getId());
+
+         return new SpendingPatternResponse(allTimeHighestSpendingCategory,
+                 allTimeHighestSpendingAmount,
+                 currentMonthHighestCategory,
+                 currentMonthHighestCategoryAmount,
+                 averageDailyExpenses,
+                 highestSingleExpense,
+                 highestExpenseDate);
+}
+
+@Transactional(readOnly = true)
+public List<CategoryGrowthResponse> getCategoryGrowth(CustomUserDetails currentUser){
+
+        User user = getAuthenticatedUser(currentUser);
+
+        YearMonth currentMonth = YearMonth.now();
+        LocalDate currentStartDate = currentMonth.atDay(1);
+        LocalDate currentEndDate = currentMonth.atEndOfMonth();
+
+        YearMonth previousMonth = currentMonth.minusMonths(1);
+        LocalDate previousStartDate = previousMonth.atDay(1);
+        LocalDate previousEndDate = previousMonth.atEndOfMonth();
+
+        List<CategoryGrowthProjection> projections = reportRepository.getCategoryGrowthComparison(user,currentStartDate,currentEndDate,previousStartDate,previousEndDate);
+
+    log.info(
+            "Fetched category growth analysis for userId = {}, totalCategories = {}",
+            user.getId(),
+            projections.size()
+    );
+
+    return projections.stream()
+            .map(p -> {BigDecimal currentMonthAmount = safe(p.getCurrentMonthAmount());
+            BigDecimal previousMonthAmount = safe(p.getPreviousMonthAmount());
+            BigDecimal growthPercentage;
+            if(previousMonthAmount.compareTo(BigDecimal.ZERO) == 0){
+                if(currentMonthAmount.compareTo(BigDecimal.ZERO) > 0){
+                    growthPercentage = BigDecimal.valueOf(100);
+                }
+                else{
+                    growthPercentage = BigDecimal.ZERO;
+                }
+
+            }
+            else{
+                growthPercentage = currentMonthAmount.subtract(previousMonthAmount).multiply(BigDecimal.valueOf(100)).divide(previousMonthAmount,MONEY_SCALE,RoundingMode.HALF_UP);
+            }
+
+            String trend;
+
+            int comparison = currentMonthAmount.compareTo(previousMonthAmount);
+
+            if(comparison < 0){
+               trend = "DECREASED";
+            } else if (comparison > 0) {
+                trend = "INCREASED";
+            }
+            else{
+                trend = "SAME";
+            }
+
+            return  new CategoryGrowthResponse(p.getCategoryName(),
+                    currentMonthAmount,
+                    previousMonthAmount,
+                    growthPercentage,
+                    trend);
+            })
+            .toList();
+
+}
+
+private User getAuthenticatedUser(CustomUserDetails currentUser){
         return userRepo.findById(currentUser.getUserId())
                 .orElseThrow(()->new UserNotFound("Authenticated User not found"));
     }

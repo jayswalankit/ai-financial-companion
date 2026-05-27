@@ -58,4 +58,31 @@ public class ReportController {
     ) {
         return ResponseEntity.ok(reportService.getWeeklyTrend(currentUser));
     }
+
+    @GetMapping("/monthlyComparison")
+    public ResponseEntity<MonthlyComparisonResponse>getMonthlyComparison(@AuthenticationPrincipal CustomUserDetails currentUser){
+        return ResponseEntity.ok(reportService.getMonthlyComparison(currentUser));
+    }
+
+    @GetMapping("/financialHealth")
+    public ResponseEntity<FinancialHealthResponse> getFinancialHealth(
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            @RequestParam BigDecimal monthlyBudget
+    ) {
+        return ResponseEntity.ok(reportService.getFinancialHealth(currentUser, monthlyBudget));
+    }
+
+    @GetMapping("/spendingPatterns")
+    public ResponseEntity<SpendingPatternResponse> getSpendingPatterns(
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(reportService.getSpendingPattern(currentUser));
+    }
+
+    @GetMapping("/categoryGrowth")
+    public ResponseEntity<List<CategoryGrowthResponse>> getCategoryGrowthAnalysis(
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(reportService.getCategoryGrowth(currentUser));
+    }
 }

@@ -8,7 +8,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.security.authentication.BadCredentialsException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -223,7 +224,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
+// =========================================================
+// BAD CREDENTIALS
+// =========================================================
 
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleBadCredentials(
+            BadCredentialsException exception
+    ) {
+
+        log.warn(
+                "Invalid login credentials: {}",
+                exception.getMessage()
+        );
+
+        return buildError(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid Credentials",
+                "Email or password is incorrect"
+        );
+    }
 
     // =========================================================
     // ILLEGAL ARGUMENT EXCEPTION
@@ -240,6 +260,29 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST,
                 "Bad Request",
                 exception.getMessage()
+        );
+    }
+
+
+
+    // =========================================================
+    // INVALID ENDPOINT / 404
+    // =========================================================
+
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoHandlerFound(
+            NoHandlerFoundException exception
+    ) {
+
+        log.warn(
+                "No handler found for endpoint: {}",
+                exception.getRequestURL()
+        );
+
+        return buildError(
+                HttpStatus.NOT_FOUND,
+                "Not Found",
+                "Requested endpoint does not exist"
         );
     }
 
