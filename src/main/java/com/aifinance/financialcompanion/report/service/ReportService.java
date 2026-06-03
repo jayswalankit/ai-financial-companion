@@ -149,6 +149,18 @@ public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser
 
         List<InsightResponse> insights = new ArrayList<>();
 
+    List<CategoryGrowthResponse> growths = getCategoryGrowth(currentUser);
+
+        for(CategoryGrowthResponse growth : growths){
+            if(growth.growthPercentage().compareTo(BigDecimal.valueOf(50))>0){
+                insights.add(new InsightResponse(growth.categoryName() +
+                        "spending increased by "+
+                        growth.growthPercentage() +
+                        "% compared to last month",
+                        "WARNING"));
+            }
+        }
+
         if(currentSpent.compareTo(monthlyBudget) > 0){
             insights.add(new InsightResponse("You have exceeded your monthly budget","CRITICAL"));
         } else if (isAboveWarningThreshold(currentSpent,monthlyBudget)) {
@@ -162,9 +174,12 @@ public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser
         if(!topCategories.isEmpty()){
             CategorySummaryResponse topCategory = topCategories.getFirst();
             insights.add(new InsightResponse(
-                    topCategory.categoryName() + "is one of your highest expense categories","INFO"
+                    topCategory.categoryName() + " is one of your highest expense categories","INFO"
             ));
         }
+
+        addBudgetVelocityInsight(user
+        ,monthlyBudget,insights);
 
         log.info("Generated {} basic insights for userId = {}", insights.size(),user.getId());
         return insights;
@@ -482,6 +497,30 @@ private User getAuthenticatedUser(CustomUserDetails currentUser){
         Integer month = currentMonth.getMonthValue();
         Integer year = currentMonth.getYear();
         return monthlyBudgetRepo.findByUserIdAndMonthAndYear(user.getId(), month,year);
+
+    }
+
+    private void addBudgetVelocityInsight(User user , BigDecimal monthlyBudget,List<InsightResponse> insights){
+
+        if(monthlyBudget.compareTo(BigDecimal.ZERO) <= 0){
+            return;
+        }
+
+        BigDecimal currentSpent = getMonthExpense(user,YearMonth.now());
+
+        BigDecimal budgetUsage = currentSpent.multiply(BigDecimal.valueOf(100)).divide(monthlyBudget,MONEY_SCALE,RoundingMode.HALF_UP);
+
+        LocalDate today = LocalDate.now();
+
+        YearMonth currentMonth = YearMonth.now();
+
+        BigDecimal monthProgress = BigDecimal.valueOf((today.getDayOfMonth()))
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(currentMonth.lengthOfMonth()),MONEY_SCALE,RoundingMode.HALF_UP);
+
+        if(budgetUsage.compareTo(monthProgress.add(BigDecimal.valueOf(20))) > 0){
+            insights.add(new InsightResponse("You are spending faster then your monthly allows", "WARNING"));
+        }
 
     }
 }
