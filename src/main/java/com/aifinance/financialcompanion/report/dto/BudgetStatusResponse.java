@@ -7,6 +7,7 @@ public record BudgetStatusResponse(
         BigDecimal currentSpent,
         BigDecimal remainingBudget,
         BigDecimal recommendedLimit,
-        String status
+        String status,
+        String advice
 ) {
 }

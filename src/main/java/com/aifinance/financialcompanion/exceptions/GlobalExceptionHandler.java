@@ -8,6 +8,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.security.authentication.BadCredentialsException;
 import java.time.LocalDateTime;
@@ -308,6 +309,18 @@ public class GlobalExceptionHandler {
                 "Internal Server Error",
                 "Something went wrong. Please try again later."
         );
+    }
+
+// =========================================================
+    // Validation  ERROR BUILDER
+    // =========================================================
+
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(HandlerMethodValidationException e){
+        ErrorResponse error = new ErrorResponse(400,"Bad Request","Validation Failed",LocalDateTime.now());
+
+        return ResponseEntity.badRequest().body(error);
     }
 
 

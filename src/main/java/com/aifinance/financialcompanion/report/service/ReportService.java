@@ -1,7 +1,8 @@
 package com.aifinance.financialcompanion.report.service;
 
+import com.aifinance.financialcompanion.budget.entity.MonthlyBudget;
+import com.aifinance.financialcompanion.budget.repo.MonthlyBudgetRepository;
 import com.aifinance.financialcompanion.entity.User;
-import com.aifinance.financialcompanion.exceptions.MonthlyBudgetException;
 import com.aifinance.financialcompanion.exceptions.UserNotFound;
 import com.aifinance.financialcompanion.expense.entity.Expense;
 import com.aifinance.financialcompanion.repo.UserRepo;
@@ -21,7 +22,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.Year;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
@@ -35,7 +35,7 @@ public class ReportService {
 
     private final ReportRepository reportRepository;
     private final UserRepo userRepo;
-
+    private final MonthlyBudgetRepository monthlyBudgetRepo;
     private static final int MONEY_SCALE = 2;
     private static final int TOP_CATEGORIES_LIMIT = 5;
     private static final BigDecimal WARNING_THRESHOLD_PERCENT = new BigDecimal("80");
@@ -82,13 +82,26 @@ public class ReportService {
 }
 
 @Transactional(readOnly = true)
- public BudgetStatusResponse getBudgetStatus(CustomUserDetails currentUser, BigDecimal monthlyBudget){
-
-        validateMonthlyBudget(monthlyBudget);
+ public BudgetStatusResponse getBudgetStatus(CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
 
-        BigDecimal currentSpent = getMonthExpense(user,YearMonth.now());
+        MonthlyBudget currentBudget = getCurrentMonthBudget(user);
+
+    BigDecimal currentSpent = getMonthExpense(user,YearMonth.now());
+
+    if(currentBudget == null){
+        return new BudgetStatusResponse(
+                BigDecimal.ZERO,
+                currentSpent,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                "BUDGET_NOT_SET",
+                "Set Your Budget"
+        );
+    }
+
+    BigDecimal monthlyBudget = currentBudget.getBudgetAmount();
 
         BigDecimal remainingBudget = monthlyBudget.subtract(currentSpent);
 
@@ -97,6 +110,8 @@ public class ReportService {
         BigDecimal recommendedDailyLimit = remainingBudget.divide(BigDecimal.valueOf(remainingDays),MONEY_SCALE,RoundingMode.HALF_UP);
 
         String status = resolveSeverity(currentSpent,monthlyBudget);
+
+        String advice= getBudgetAdvice(currentSpent,monthlyBudget,recommendedDailyLimit);
 
         log.info("Generated budget status for userId = {}, monthlyBudget = {}, currentSpent = {}, remainingBudget = {}, remainingDays = {}",user.getId(),
                 monthlyBudget,
@@ -109,16 +124,28 @@ public class ReportService {
                 currentSpent,
                 remainingBudget,
                 recommendedDailyLimit,
-                status
+                status,
+                advice
         );
 }
 
 @Transactional(readOnly = true)
-public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser, BigDecimal monthlyBudget){
-        validateMonthlyBudget(monthlyBudget);
+public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
         BigDecimal currentSpent = getMonthExpense(user,YearMonth.now());
+
+        MonthlyBudget currentBudget = getCurrentMonthBudget(user);
+
+    if(currentBudget == null){
+        return List.of(
+                new InsightResponse(
+                        "Set a monthly budget to unlock smarter spending insights.","INFO"
+                )
+        );
+    }
+
+        BigDecimal monthlyBudget = currentBudget.getBudgetAmount();
 
         List<InsightResponse> insights = new ArrayList<>();
 
@@ -191,14 +218,24 @@ public MonthlyComparisonResponse getMonthlyComparison(CustomUserDetails currentU
 }
 
 @Transactional(readOnly = true)
-public FinancialHealthResponse getFinancialHealth(CustomUserDetails currentUser, BigDecimal monthlyBudget){
-
-        validateMonthlyBudget(monthlyBudget);
+public FinancialHealthResponse getFinancialHealth(CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
 
         YearMonth currentMonth = YearMonth.now();
         BigDecimal totalSpent = getMonthExpense(user,currentMonth);
+
+        MonthlyBudget currentBudget = getCurrentMonthBudget(user);
+
+        if(currentBudget == null){
+            return new FinancialHealthResponse(totalSpent,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    "Budget Not SET");
+        }
+
+        BigDecimal monthlyBudget = currentBudget.getBudgetAmount();
 
         BigDecimal remainingBudget = monthlyBudget.subtract(totalSpent);
 
@@ -208,6 +245,7 @@ public FinancialHealthResponse getFinancialHealth(CustomUserDetails currentUser,
 
         if(budgetUsagePercentage.compareTo(BigDecimal.valueOf(50)) <= 0){
             financialStatus = "SAFE";
+
         } else if (budgetUsagePercentage.compareTo(BigDecimal.valueOf(75)) <= 0) {
             financialStatus = "MODERATE";
         } else if (budgetUsagePercentage.compareTo(BigDecimal.valueOf(90)) <= 0) {
@@ -369,10 +407,17 @@ private User getAuthenticatedUser(CustomUserDetails currentUser){
                 .toList();
     }
 
-    private void validateMonthlyBudget(BigDecimal monthlyBudget){
-        if(monthlyBudget == null || monthlyBudget.compareTo(BigDecimal.ZERO) <= 0){
-            throw new MonthlyBudgetException("monthly budget must be greater than zero");
+    private String getBudgetAdvice(BigDecimal currentSpent, BigDecimal monthlyBudget, BigDecimal recommendedLimit){
+
+        if(currentSpent.compareTo(monthlyBudget)> 0){
+            return "You have exceeded your monthly budget. Reduce discretionary spending";
         }
+
+        if(isAboveWarningThreshold(currentSpent,monthlyBudget)){
+            return "You are close to your monthly budget. Try spending less than rupee" + recommendedLimit + "per day.";
+        }
+
+        return "You are spending withing budget";
     }
 
     private int getRemainingDaysInCurrentMonth(){
@@ -429,5 +474,14 @@ private User getAuthenticatedUser(CustomUserDetails currentUser){
 
     private Long safeCount(Long value) {
         return value == null ? 0L : value;
+    }
+
+    private MonthlyBudget getCurrentMonthBudget(User user){
+        YearMonth currentMonth = YearMonth.now();
+
+        Integer month = currentMonth.getMonthValue();
+        Integer year = currentMonth.getYear();
+        return monthlyBudgetRepo.findByUserIdAndMonthAndYear(user.getId(), month,year);
+
     }
 }

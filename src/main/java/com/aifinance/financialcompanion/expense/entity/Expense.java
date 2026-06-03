@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,9 +41,11 @@ public class Expense {
    @Column(name = "expense_date" , nullable = false)
     private LocalDate expenseDate;
 
+   @CreationTimestamp
    @Column(name = "created_at" , nullable = false , updatable = false)
     private LocalDateTime createdAt;
 
+   @UpdateTimestamp
    @Column(name = "updated_at" , nullable = false)
     private LocalDateTime updatedAt;
 
@@ -62,15 +66,4 @@ public class Expense {
         this.user = user;
     }
 
-    @PrePersist
-    protected  void onCreate(){
-       LocalDateTime now = LocalDateTime.now();
-       this.createdAt = now;
-       this.updatedAt = now;
-   }
-
-   @PreUpdate
-    protected void onUpdate(){
-       this.updatedAt = LocalDateTime.now();
-   }
 }

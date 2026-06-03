@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
@@ -38,18 +37,16 @@ public class ReportController {
 
     @GetMapping("/budget-status")
     public ResponseEntity<BudgetStatusResponse> getBudgetStatus(
-            @AuthenticationPrincipal CustomUserDetails currentUser,
-            @RequestParam BigDecimal monthlyBudget
+            @AuthenticationPrincipal CustomUserDetails currentUser
     ) {
-        return ResponseEntity.ok(reportService.getBudgetStatus(currentUser, monthlyBudget));
+        return ResponseEntity.ok(reportService.getBudgetStatus(currentUser));
     }
 
     @GetMapping("/insights")
     public ResponseEntity<List<InsightResponse>> getInsights(
-            @AuthenticationPrincipal CustomUserDetails currentUser,
-            @RequestParam BigDecimal monthlyBudget
+            @AuthenticationPrincipal CustomUserDetails currentUser
     ) {
-        return ResponseEntity.ok(reportService.generateBasicInsights(currentUser, monthlyBudget));
+        return ResponseEntity.ok(reportService.generateBasicInsights(currentUser));
     }
 
     @GetMapping("/weekly-trend")
@@ -66,10 +63,9 @@ public class ReportController {
 
     @GetMapping("/financialHealth")
     public ResponseEntity<FinancialHealthResponse> getFinancialHealth(
-            @AuthenticationPrincipal CustomUserDetails currentUser,
-            @RequestParam BigDecimal monthlyBudget
+            @AuthenticationPrincipal CustomUserDetails currentUser
     ) {
-        return ResponseEntity.ok(reportService.getFinancialHealth(currentUser, monthlyBudget));
+        return ResponseEntity.ok(reportService.getFinancialHealth(currentUser));
     }
 
     @GetMapping("/spendingPatterns")
