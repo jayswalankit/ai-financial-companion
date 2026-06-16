@@ -5,6 +5,7 @@ import com.aifinance.financialcompanion.budget.repo.MonthlyBudgetRepository;
 import com.aifinance.financialcompanion.entity.User;
 import com.aifinance.financialcompanion.exceptions.UserNotFound;
 import com.aifinance.financialcompanion.expense.entity.Expense;
+import com.aifinance.financialcompanion.preference.service.UserContextService;
 import com.aifinance.financialcompanion.repo.UserRepo;
 import com.aifinance.financialcompanion.report.dto.*;
 import com.aifinance.financialcompanion.report.projection.CategoryExpenseProjection;
@@ -36,6 +37,7 @@ public class ReportService {
     private final ReportRepository reportRepository;
     private final UserRepo userRepo;
     private final MonthlyBudgetRepository monthlyBudgetRepo;
+    private final UserContextService userContextService;
     private static final int MONEY_SCALE = 2;
     private static final int TOP_CATEGORIES_LIMIT = 5;
     private static final BigDecimal WARNING_THRESHOLD_PERCENT = new BigDecimal("80");
@@ -133,6 +135,10 @@ public class ReportService {
 public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
+        boolean tripMode = userContextService.isTripMode(currentUser);
+
+        boolean medicalMode = userContextService.isMedicalMode(currentUser);
+
         BigDecimal currentSpent = getMonthExpense(user,YearMonth.now());
 
         MonthlyBudget currentBudget = getCurrentMonthBudget(user);
@@ -151,15 +157,34 @@ public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser
 
     List<CategoryGrowthResponse> growths = getCategoryGrowth(currentUser);
 
-        for(CategoryGrowthResponse growth : growths){
-            if(growth.growthPercentage().compareTo(BigDecimal.valueOf(50))>0){
-                insights.add(new InsightResponse(growth.categoryName() +
-                        "spending increased by "+
-                        growth.growthPercentage() +
-                        "% compared to last month",
-                        "WARNING"));
-            }
-        }
+       for(CategoryGrowthResponse growth : growths){
+
+           log.info(
+                   "Category = {}, Growth = {}",
+                   growth.categoryName(),
+                   growth.growthPercentage()
+           );
+
+           if(tripMode && growth.categoryName().equalsIgnoreCase("Trip")){
+             continue;
+         }
+
+         if(medicalMode && growth.categoryName().equalsIgnoreCase("Medical")){
+             continue;
+         }
+
+           log.info(
+                   "Compare Result = {}",
+                   growth.growthPercentage()
+                           .compareTo(BigDecimal.valueOf(50))
+           );
+
+         if(growth.growthPercentage()
+                 .compareTo(BigDecimal.valueOf(50)) > 0){
+             log.info("ADDING WARNING FOR {}", growth.categoryName());
+             insights.add(new InsightResponse(growth.categoryName() + " spending increased by " + growth.growthPercentage() + "% compared to last month","WARNING"));
+         }
+       }
 
         if(currentSpent.compareTo(monthlyBudget) > 0){
             insights.add(new InsightResponse("You have exceeded your monthly budget","CRITICAL"));
@@ -523,4 +548,68 @@ private User getAuthenticatedUser(CustomUserDetails currentUser){
         }
 
     }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getCurrentMonthExpense(User user) {
+
+        YearMonth currentMonth = YearMonth.now();
+
+        LocalDate startDate = currentMonth.atDay(1);
+
+        LocalDate endDate = currentMonth.atEndOfMonth();
+
+        return safe(
+                reportRepository.getTotalExpenseByUserAndDateBetween(
+                        user,
+                        startDate,
+                        endDate
+                )
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public String getCurrentMonthTopCategory(User user){
+        YearMonth currentMonth = YearMonth.now();
+        LocalDate startDate = currentMonth.atDay(1);
+        LocalDate endDate = currentMonth.atEndOfMonth();
+        List<CategoryExpenseProjection> categories =
+                reportRepository.findTopCategoriesByUserAndDateBetween(
+                        user,
+                        startDate,
+                        endDate,
+                        PageRequest.of(0, 1)
+                );
+
+        if (categories.isEmpty()) {
+            return "N/A";
+        }
+
+        return categories.getFirst().getCategoryName();
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getTodaySpent(User user, LocalDate currentDate) {
+        return reportRepository.getTodayExpenseByUserAndDate(user,currentDate);
+    }
+
+    @Transactional(readOnly = true)
+    public String getTodayTopCategory(User user){
+       LocalDate today = LocalDate.now();
+
+       List<CategoryExpenseProjection> categories = reportRepository.findTopCategoriesByUserAndDateBetween(user,today,today,PageRequest.of(0,1));
+
+       if(categories.isEmpty()){
+           return "N/A";
+       }
+       return categories.getFirst().getCategoryName();
+    }
+
+    @Transactional(readOnly = true)
+    public long getTodayExpenseCount(User user){
+         LocalDate currentDate = LocalDate.now();
+
+         return  reportRepository.countByUserAndExpenseDate(user,currentDate);
+    }
 }
+
+

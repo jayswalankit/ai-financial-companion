@@ -10,12 +10,12 @@ import com.aifinance.financialcompanion.exceptions.BudgetNotFoundException;
 import com.aifinance.financialcompanion.exceptions.UserNotFound;
 import com.aifinance.financialcompanion.repo.UserRepo;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
-import jakarta.persistence.criteria.CriteriaBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.YearMonth;
 
 @Slf4j
@@ -121,5 +121,27 @@ public class BudgetService {
                 budget.getBudgetAmount(),
                 budget.getCreatedAt(),
                 budget.getUpdatedAt());
+    }
+
+    public BigDecimal getCurrentMonthBudget(User user) {
+
+        YearMonth currentMonth = YearMonth.now();
+
+        Integer month = currentMonth.getMonthValue();
+        Integer year = currentMonth.getYear();
+
+
+        MonthlyBudget budget =
+                monthlyBudgetRepository.findByUserIdAndMonthAndYear(
+                        user.getId(),
+                        month,
+                        year
+                );
+
+        if (budget == null) {
+            return BigDecimal.ZERO;
+        }
+
+        return budget.getBudgetAmount();
     }
 }

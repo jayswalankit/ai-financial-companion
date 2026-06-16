@@ -1,6 +1,7 @@
 package com.aifinance.financialcompanion.report.controller;
 
 
+import com.aifinance.financialcompanion.notification.service.NotificationService;
 import com.aifinance.financialcompanion.report.dto.*;
 import com.aifinance.financialcompanion.report.service.ReportService;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -20,6 +20,7 @@ import java.util.List;
 public class ReportController {
 
     private final ReportService reportService;
+    private final NotificationService notificationService;
 
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardSummaryResponse> getDashboardSummary(
@@ -46,7 +47,15 @@ public class ReportController {
     public ResponseEntity<List<InsightResponse>> getInsights(
             @AuthenticationPrincipal CustomUserDetails currentUser
     ) {
-        return ResponseEntity.ok(reportService.generateBasicInsights(currentUser));
+        List<InsightResponse> insights =
+                reportService.generateBasicInsights(currentUser);
+
+        notificationService.createNotificationsFromInsights(
+                currentUser,
+                insights
+        );
+
+        return ResponseEntity.ok(insights);
     }
 
     @GetMapping("/weekly-trend")

@@ -170,4 +170,24 @@ public interface ReportRepository extends JpaRepository<Expense, Long> {
             @Param("previousMonthStart") LocalDate previousMonthStart,
             @Param("previousMonthEnd") LocalDate previousMonthEnd
     );
+
+    @Query("""
+       SELECT COALESCE(SUM(e.amount),0)
+       FROM Expense e
+       WHERE e.user = :user
+       AND e.expenseDate = :currentDate
+       """)
+    BigDecimal getTodayExpenseByUserAndDate(
+            @Param("user") User user,
+            @Param("currentDate") LocalDate currentDate
+    );
+
+    @Query("""
+             SELECT COUNT(e)
+             FROM Expense e
+             WHERE e.user = :user
+             AND e.expenseDate = :currentDate
+            """)
+    long countByUserAndExpenseDate(@Param("user") User user, @Param("currentDate") LocalDate currentDate);
+
 }

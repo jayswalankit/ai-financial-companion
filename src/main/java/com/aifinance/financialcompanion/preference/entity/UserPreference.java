@@ -1,5 +1,6 @@
 package com.aifinance.financialcompanion.preference.entity;
 
+import com.aifinance.financialcompanion.customMode.entity.CustomMode;
 import com.aifinance.financialcompanion.entity.User;
 import com.aifinance.financialcompanion.enums.NotificationMode;
 import com.aifinance.financialcompanion.enums.UserMode;
@@ -39,4 +40,7 @@ public class UserPreference {
     @Column(name = "updated_at",nullable = false)
    private  LocalDateTime updatedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "active_custom_id")
+    private CustomMode activeCustomMode;
 }
