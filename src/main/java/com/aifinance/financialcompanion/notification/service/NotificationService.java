@@ -23,7 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -67,6 +69,31 @@ public class NotificationService {
                 .map(notification->new NotificationResponse(notification.getMessage(), notification.getSeverity().name(),notification.getSentAt()))
                 .toList();
 
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> getPrioritizedNotifications(CustomUserDetails currentUser){
+
+        User user = getAuthenticatedUSer(currentUser);
+
+        return notificationRepo.findByUser(user)
+                .stream()
+                .sorted(
+                        Comparator
+                                .comparing(NotificationLog::getSeverity)
+                                .thenComparing(
+                                        NotificationLog::getSentAt,
+                                        Comparator.reverseOrder()
+                                )
+                )
+                .map(notification ->
+                        new NotificationResponse(
+                                notification.getMessage(),
+                                notification.getSeverity().name(),
+                                notification.getSentAt()
+                        )
+                )
+                .toList();
     }
 
     @Transactional
@@ -131,9 +158,7 @@ public class NotificationService {
     }
 
     @Transactional
-    public void createNotificationsFromInsights(
-            CustomUserDetails currentUser,
-            List<InsightResponse> insights) {
+    public void createNotificationsFromInsights(CustomUserDetails currentUser, List<InsightResponse> insights) {
 
         if (insights == null || insights.isEmpty()) {
             return;
@@ -179,6 +204,80 @@ public class NotificationService {
                 .getCurrentNotificationMode(currentUser)
                 == NotificationMode.NORMAL;
     }
+
+    @Transactional
+    public void generateAndStoreDailySummary(User user){
+
+        LocalDate today = LocalDate.now();
+
+        LocalDateTime startOfDay =
+                today.atStartOfDay();
+
+        LocalDateTime endOfDay =
+                today.atTime(23,59,59);
+
+        boolean alreadyGenerated =
+                notificationRepo
+                        .existsByUserAndMessageContainingAndSentAtBetween(
+                                user,
+                                "Daily Summary",
+                                startOfDay,
+                                endOfDay
+                        );
+
+        if(alreadyGenerated){
+
+            log.info(
+                    "Daily summary already exists for userId={}",
+                    user.getId()
+            );
+
+            return;
+        }
+
+        BigDecimal todaySpent =
+                reportService.getTodaySpent(
+                        user,
+                        today
+                );
+
+        String todayTopCategory =
+                reportService.getTodayTopCategory(user);
+
+        long expenseCount =
+                reportService.getTodayExpenseCount(user);
+
+        String message = String.format(
+                """
+                Daily Summary
+    
+                Today Spent: %s
+    
+                Top Category: %s
+    
+                Transactions: %d
+                """,
+                todaySpent,
+                todayTopCategory,
+                expenseCount
+        );
+
+        NotificationLog notification =
+                new NotificationLog(
+                        user,
+                        message,
+                        NotificationSeverity.INFO,
+                        null
+                );
+
+        notificationRepo.save(notification);
+
+        log.info(
+                "Daily summary stored for userId={}",
+                user.getId()
+        );
+    }
+
 
     private User getAuthenticatedUSer(CustomUserDetails currentUser){
         return userRepo.findById(currentUser.getUserId())

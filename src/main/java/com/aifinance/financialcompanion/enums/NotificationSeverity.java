@@ -1,7 +1,7 @@
 package com.aifinance.financialcompanion.enums;
 
 public enum NotificationSeverity {
-    INFO,
+   CRITICAL,
     WARNING,
-    CRITICAL
+    INFO
 }

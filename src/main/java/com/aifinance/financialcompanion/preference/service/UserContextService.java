@@ -112,10 +112,10 @@ public class UserContextService {
     }
 
     public NotificationMode getCurrentNotificationMode(
-            CustomUserDetails currentUser) {
+            User user) {
 
         UserPreference preference =
-                getUserPreference(currentUser);
+                getUserPreference(user);
 
         if (preference == null) {
             return NotificationMode.NORMAL;
@@ -132,8 +132,22 @@ public class UserContextService {
         return preference.getNotificationMode();
     }
 
+    public NotificationMode getCurrentNotificationMode(
+            CustomUserDetails currentUser){
+
+        User user = getAuthenticatedUser(currentUser);
+
+        return getCurrentNotificationMode(user);
+    }
+
     private User getAuthenticatedUser(CustomUserDetails currentUser){
         return userRepo.findById(currentUser.getUserId())
                 .orElseThrow(()->new UserNotFound("Authenticated User not found"));
+    }
+
+    private UserPreference getUserPreference(
+            User user){
+
+        return userPreferenceRepo.findByUser(user);
     }
 }

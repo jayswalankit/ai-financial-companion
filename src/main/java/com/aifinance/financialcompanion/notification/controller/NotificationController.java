@@ -47,4 +47,17 @@ public class NotificationController {
                 notificationService.generateDailySummaryResponse(currentUser)
         );
     }
+
+    @GetMapping("/priority")
+    public List<NotificationResponse>
+    getPriorityNotifications(
+            @AuthenticationPrincipal
+            CustomUserDetails currentUser){
+
+        return notificationService
+                .getPrioritizedNotifications(
+                        currentUser
+                );
+    }
+
 }
