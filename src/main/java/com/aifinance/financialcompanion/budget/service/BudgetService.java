@@ -9,6 +9,7 @@ import com.aifinance.financialcompanion.entity.User;
 import com.aifinance.financialcompanion.exceptions.BudgetNotFoundException;
 import com.aifinance.financialcompanion.exceptions.UserNotFound;
 import com.aifinance.financialcompanion.repo.UserRepo;
+import com.aifinance.financialcompanion.report.service.ReportService;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.YearMonth;
 
 @Slf4j
@@ -25,6 +28,7 @@ public class BudgetService {
 
     private final MonthlyBudgetRepository monthlyBudgetRepository;
     private final UserRepo userRepo;
+    private final ReportService reportService;
 
     @Transactional
     public BudgetResponse createOrUpdateBudget(BudgetRequest request, CustomUserDetails currentUser){
@@ -72,28 +76,28 @@ public class BudgetService {
     }
 
     @Transactional(readOnly = true)
-    public BudgetStatusResponse budgetStatus(CustomUserDetails currentUser){
+    public BudgetStatusResponse budgetStatus(CustomUserDetails currentUser) {
 
         User user = getAuthenticated(currentUser);
-        log.info("Getting budget status for userId = {}",user.getId());
+        log.info("Getting budget status for userId = {}", user.getId());
 
         YearMonth currentMonth = YearMonth.now();
         Integer month = currentMonth.getMonthValue();
         Integer year = currentMonth.getYear();
 
-        MonthlyBudget currentBudget = monthlyBudgetRepository.findByUserIdAndMonthAndYear(user.getId(), month,year);
+        MonthlyBudget currentBudget = monthlyBudgetRepository.findByUserIdAndMonthAndYear(user.getId(), month, year);
         boolean budgetExist;
 
-        if(currentBudget != null){
-           return new BudgetStatusResponse(true,
-                   currentBudget.getBudgetAmount(),
-                   currentBudget.getMonth(),
-                   currentBudget.getYear());
+        if (currentBudget != null) {
+            return new BudgetStatusResponse(true,
+                    currentBudget.getBudgetAmount(),
+                    currentBudget.getMonth(),
+                    currentBudget.getYear());
         }
 
         MonthlyBudget latestBudget = monthlyBudgetRepository.findTopByUserIdOrderByYearDescMonthDesc(user.getId());
 
-        if(latestBudget != null){
+        if (latestBudget != null) {
             return new BudgetStatusResponse(false,
                     latestBudget.getBudgetAmount(),
                     latestBudget.getMonth(),
@@ -106,7 +110,6 @@ public class BudgetService {
                 null);
 
     }
-
 
     private User getAuthenticated(CustomUserDetails currentUser){
 

@@ -109,7 +109,23 @@ public class ReportService {
 
         int remainingDays  = getRemainingDaysInCurrentMonth();
 
-        BigDecimal recommendedDailyLimit = remainingBudget.divide(BigDecimal.valueOf(remainingDays),MONEY_SCALE,RoundingMode.HALF_UP);
+    BigDecimal recommendedDailyLimit;
+
+    if (remainingBudget.compareTo(BigDecimal.ZERO) <= 0) {
+
+        recommendedDailyLimit = BigDecimal.ZERO;
+
+    } else if (remainingDays <= 0) {
+
+        recommendedDailyLimit = BigDecimal.ZERO;
+
+    } else {
+
+        recommendedDailyLimit =
+                remainingBudget.divide(
+                        BigDecimal.valueOf(remainingDays), MONEY_SCALE, RoundingMode.HALF_UP
+                );
+    }
 
         String status = resolveSeverity(currentSpent,monthlyBudget);
 
