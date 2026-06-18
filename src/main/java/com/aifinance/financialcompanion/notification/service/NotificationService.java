@@ -278,6 +278,83 @@ public class NotificationService {
         );
     }
 
+    @Transactional
+    public void generateAndStoreMonthlySummary(User user) {
+
+        LocalDateTime startOfMonth =
+                YearMonth.now()
+                        .atDay(1)
+                        .atStartOfDay();
+
+        LocalDateTime endOfMonth =
+                YearMonth.now()
+                        .atEndOfMonth()
+                        .atTime(23,59,59);
+
+        boolean alreadyGenerated =
+                notificationRepo
+                        .existsByUserAndMessageContainingAndSentAtBetween(
+                                user,
+                                "Monthly Summary",
+                                startOfMonth,
+                                endOfMonth
+                        );
+
+        if(alreadyGenerated){
+
+            log.info(
+                    "Monthly summary already exists for userId={}",
+                    user.getId()
+            );
+
+            return;
+        }
+
+        BigDecimal totalSpent =
+                reportService.getCurrentMonthExpense(user);
+
+        BigDecimal budget =
+                budgetService.getCurrentMonthBudget(user);
+
+        BigDecimal remaining =
+                budget.subtract(totalSpent);
+
+        String topCategory =
+                reportService.getCurrentMonthTopCategory(user);
+
+        String message = String.format(
+                """
+                Monthly Summary
+    
+                Total Spent: %s
+    
+                Budget: %s
+    
+                Remaining: %s
+    
+                Top Category: %s
+                """,
+                totalSpent,
+                budget,
+                remaining,
+                topCategory
+        );
+
+        NotificationLog notification =
+                new NotificationLog(
+                        user,
+                        message,
+                        NotificationSeverity.INFO,
+                        null
+                );
+
+        notificationRepo.save(notification);
+
+        log.info(
+                "Monthly summary stored for userId={}",
+                user.getId()
+        );
+    }
 
     private User getAuthenticatedUSer(CustomUserDetails currentUser){
         return userRepo.findById(currentUser.getUserId())

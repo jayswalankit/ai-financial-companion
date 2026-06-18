@@ -22,8 +22,7 @@ public class NotificationScheduler {
     private final UserContextService userContextService;
 
     @Scheduled(cron = "0 0 22 * * *")
-
-public void generateDailySummaries(){
+       public void generateDailySummaries(){
 
 
     log.info("Running Daily Summary Scheduler");
@@ -67,6 +66,33 @@ public void generateDailySummaries(){
 
     log.info("Daily Summary Scheduler Completed");
 }
+
+    @Scheduled(cron = "0 0 22 L * ?")
+
+    public void generateMonthlySummaries(){
+
+        log.info("Running Monthly Summary Scheduler");
+
+        List<User> users =
+                userRepo.findAll();
+
+        for(User user : users){
+
+            notificationService
+                    .generateAndStoreMonthlySummary(
+                            user
+                    );
+
+            log.info(
+                    "Monthly summary process completed for userId={}",
+                    user.getId()
+            );
+        }
+
+        log.info("Monthly Summary Scheduler Completed");
+    }
+
+
 
 
 
