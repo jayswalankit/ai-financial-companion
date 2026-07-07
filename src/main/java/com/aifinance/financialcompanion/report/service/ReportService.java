@@ -15,6 +15,7 @@ import com.aifinance.financialcompanion.report.repo.ReportRepository;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -146,6 +147,70 @@ public class ReportService {
                 advice
         );
 }
+
+///  for notification service
+    public BudgetStatusResponse getBudgetStatus(User user) {
+
+        MonthlyBudget currentBudget = getCurrentMonthBudget(user);
+
+        BigDecimal currentSpent = getMonthExpense(user, YearMonth.now());
+
+        if (currentBudget == null) {
+            return new BudgetStatusResponse(
+                    BigDecimal.ZERO,
+                    currentSpent,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    "BUDGET_NOT_SET",
+                    "Set Your Budget"
+            );
+        }
+
+        BigDecimal monthlyBudget = currentBudget.getBudgetAmount();
+
+        BigDecimal remainingBudget = monthlyBudget.subtract(currentSpent);
+
+        int remainingDays = getRemainingDaysInCurrentMonth();
+
+        BigDecimal recommendedDailyLimit;
+
+        if (remainingBudget.compareTo(BigDecimal.ZERO) <= 0) {
+
+            recommendedDailyLimit = BigDecimal.ZERO;
+
+        } else if (remainingDays <= 0) {
+
+            recommendedDailyLimit = BigDecimal.ZERO;
+
+        } else {
+
+            recommendedDailyLimit =
+                    remainingBudget.divide(
+                            BigDecimal.valueOf(remainingDays),
+                            MONEY_SCALE,
+                            RoundingMode.HALF_UP
+                    );
+        }
+
+        String status =
+                resolveSeverity(currentSpent, monthlyBudget);
+
+        String advice =
+                getBudgetAdvice(
+                        currentSpent,
+                        monthlyBudget,
+                        recommendedDailyLimit
+                );
+
+        return new BudgetStatusResponse(
+                monthlyBudget,
+                currentSpent,
+                remainingBudget,
+                recommendedDailyLimit,
+                status,
+                advice
+        );
+    }
 
 @Transactional(readOnly = true)
 public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser){
@@ -463,17 +528,35 @@ private User getAuthenticatedUser(CustomUserDetails currentUser){
                 .toList();
     }
 
-    private String getBudgetAdvice(BigDecimal currentSpent, BigDecimal monthlyBudget, BigDecimal recommendedLimit){
+    private String getBudgetAdvice(BigDecimal currentSpent,
+                                   BigDecimal monthlyBudget,
+                                   BigDecimal recommendedLimit) {
 
-        if(currentSpent.compareTo(monthlyBudget)> 0){
-            return "You have exceeded your monthly budget. Reduce discretionary spending";
+        String status = resolveSeverity(currentSpent, monthlyBudget);
+
+        switch (status) {
+
+            case "BUDGET_NOT_SET":
+                return "Please set your monthly budget to receive personalized financial insights.";
+
+            case "CRITICAL":
+                return "You are spending much faster than planned. Limit your daily expenses to ₹"
+                        + recommendedLimit
+                        + " to avoid exceeding your monthly budget.";
+
+            case "WARNING":
+                return "Your spending is higher than expected for this stage of the month. Try keeping your daily expenses within ₹"
+                        + recommendedLimit
+                        + ".";
+
+            case "SAFE":
+                return "Great! Your spending is on track. Continue staying within ₹"
+                        + recommendedLimit
+                        + " per day.";
+
+            default:
+                return "Budget analysis unavailable.";
         }
-
-        if(isAboveWarningThreshold(currentSpent,monthlyBudget)){
-            return "You are close to your monthly budget. Try spending less than rupee" + recommendedLimit + "per day.";
-        }
-
-        return "You are spending withing budget";
     }
 
     private int getRemainingDaysInCurrentMonth(){
@@ -491,16 +574,51 @@ private User getAuthenticatedUser(CustomUserDetails currentUser){
         return spentPercentage.compareTo(WARNING_THRESHOLD_PERCENT) >= 0;
     }
 
-    private String resolveSeverity(BigDecimal currentSpent, BigDecimal monthlyBudget){
-        if(currentSpent.compareTo(monthlyBudget) > 0){
+    private String resolveSeverity(BigDecimal currentSpent,
+                                   BigDecimal monthlyBudget) {
+
+
+        if (monthlyBudget == null ||
+                monthlyBudget.compareTo(BigDecimal.ZERO) <= 0) {
+            return "BUDGET_NOT_SET";
+        }
+
+
+        if (currentSpent.compareTo(monthlyBudget) >= 0) {
             return "CRITICAL";
         }
 
-        if(isAboveWarningThreshold(currentSpent, monthlyBudget)){
+        int currentDay = LocalDate.now().getDayOfMonth();
+        int totalDays = YearMonth.now().lengthOfMonth();
+
+
+        BigDecimal expectedSpent = monthlyBudget
+                .multiply(BigDecimal.valueOf(currentDay))
+                .divide(
+                        BigDecimal.valueOf(totalDays),
+                        2,
+                        RoundingMode.HALF_UP
+                );
+
+
+        BigDecimal spendingRatio = currentSpent
+                .divide(
+                        expectedSpent,
+                        2,
+                        RoundingMode.HALF_UP
+                );
+
+
+        if (spendingRatio.compareTo(BigDecimal.valueOf(1.50)) >= 0) {
+            return "CRITICAL";
+        }
+
+
+        if (spendingRatio.compareTo(BigDecimal.valueOf(1.20)) >= 0) {
             return "WARNING";
         }
 
-        return "INFO";
+        return "SAFE";
     }
 
     private List<WeeklyTrendResponse> getWeeklyTrendByUser(User user) {

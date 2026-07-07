@@ -8,6 +8,7 @@ public record DailySummaryResponse(
         BigDecimal todaySpent,
        String todayTopCategory,
         long expenseCount,
-        LocalDate summaryDate
+        LocalDate summaryDate,
+        BigDecimal recommendedDailyLimit
         ){
 }

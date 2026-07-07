@@ -12,11 +12,14 @@ import com.aifinance.financialcompanion.expense.dto.ExpenseResponse;
 import com.aifinance.financialcompanion.expense.dto.UpdateExpenseRequest;
 import com.aifinance.financialcompanion.expense.entity.Expense;
 import com.aifinance.financialcompanion.expense.repo.ExpenseRepository;
+import com.aifinance.financialcompanion.notification.service.NotificationService;
 import com.aifinance.financialcompanion.repo.UserRepo;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -35,9 +38,10 @@ public class ExpenseService {
     private final UserRepo userRepo;
     private final CategoryRepository categoryRepository;
     private final ExpenseRepository expenseRepository;
+    private final NotificationService notificationService;
 
  @Transactional
-    public ExpenseResponse createExpense(CreateExpenseRequest request, CustomUserDetails currentUser) {
+     public ExpenseResponse createExpense(CreateExpenseRequest request, CustomUserDetails currentUser) {
         Long userId = currentUser.getUserId();
 
         log.info("Creating expense for userId = {} , title = {} , categoryId = {}", userId, request.title(), request.categoryId());
@@ -64,6 +68,17 @@ public class ExpenseService {
         Expense savedExpense = expenseRepository.save(expense);
         log.info("Expense created successfully. expenseId = {} , userId = {}", savedExpense.getId(), userId);
 
+     if (notificationService.shouldSendInstantNotification(currentUser)) {
+
+         notificationService.sendFinancialSummary(user);
+
+     } else {
+
+         log.info(
+                 "Silent mode enabled. Financial summary email skipped for userId={}",
+                 user.getId()
+         );
+     }
         return mapToResponse(savedExpense);
     }
 

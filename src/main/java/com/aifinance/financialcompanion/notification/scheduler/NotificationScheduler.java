@@ -21,7 +21,8 @@ public class NotificationScheduler {
     private final NotificationService notificationService;
     private final UserContextService userContextService;
 
-    @Scheduled(cron = "0 0 22 * * *")
+//    @Scheduled(cron = "0 0 22 * * *")
+      @Scheduled(cron = "0 46 13 * * *")
        public void generateDailySummaries(){
 
 
@@ -55,8 +56,8 @@ public class NotificationScheduler {
             continue;
         }
 
-        notificationService
-                .generateAndStoreDailySummary(user);
+        notificationService.generateAndStoreDailySummary(user);
+        notificationService.sendFinancialSummary(user);
 
         log.info(
                 "Daily summary checked completed for userId = {}",
@@ -67,33 +68,49 @@ public class NotificationScheduler {
     log.info("Daily Summary Scheduler Completed");
 }
 
-    @Scheduled(cron = "0 0 22 L * ?")
+    @Scheduled(cron = "0 46 13 * * *")
 
-    public void generateMonthlySummaries(){
+    public void generateMonthlySummaries() {
 
         log.info("Running Monthly Summary Scheduler");
 
-        List<User> users =
-                userRepo.findAll();
 
-        for(User user : users){
+        List<User> users = userRepo.findAll();
 
-            notificationService
-                    .generateAndStoreMonthlySummary(
-                            user
-                    );
+        log.info("Total users found = {}", users.size());
+
+        for (User user : users) {
+
+            NotificationMode mode =
+                    userContextService
+                            .getCurrentNotificationMode(user);
 
             log.info(
-                    "Monthly summary process completed for userId={}",
+                    "Checking userId = {}, notificationMode = {}",
+                    user.getId(),
+                    mode
+            );
+
+            if (mode != NotificationMode.SILENT) {
+
+                log.info(
+                        "Skipping userId = {} because mode = {}",
+                        user.getId(),
+                        mode
+                );
+
+                continue;
+            }
+
+            notificationService.generateMonthlySummaryResponse(user);
+            notificationService.sendFinancialSummary(user);
+
+            log.info(
+                    "Monthly summary checked completed for userId = {}",
                     user.getId()
             );
         }
 
-        log.info("Monthly Summary Scheduler Completed");
+
     }
-
-
-
-
-
 }

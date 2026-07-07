@@ -12,11 +12,16 @@ import com.aifinance.financialcompanion.notification.entity.NotificationLog;
 import com.aifinance.financialcompanion.notification.repo.NotificationRepo;
 import com.aifinance.financialcompanion.preference.service.UserContextService;
 import com.aifinance.financialcompanion.repo.UserRepo;
+import com.aifinance.financialcompanion.report.dto.BudgetStatusResponse;
 import com.aifinance.financialcompanion.report.dto.InsightResponse;
 import com.aifinance.financialcompanion.report.service.ReportService;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,7 +43,10 @@ public class NotificationService {
     private final ReportService reportService;
     private final BudgetService budgetService;
     private final UserContextService userContextService;
+    private final JavaMailSender mailSender;
 
+    @Value("${spring.mail.username}")
+    private String fromEmail;
     @Transactional
     public NotificationResponse createNotification(CustomUserDetails currentUser, String message, NotificationSeverity severity){
 
@@ -48,6 +56,19 @@ public class NotificationService {
         NotificationLog notification = new NotificationLog(user,message,severity,null);
 
         NotificationLog savedNotification = notificationRepo.save(notification);
+
+        if(shouldSendInstantNotification(currentUser)){
+            sendEmail(user,"AI Financial Companion",message);
+
+            log.info("Instant email sent to {}",
+                    user.getEmail());
+        }
+        else{
+            log.info(
+                    "Silent mode enabled. Instant email skipped for userId={}",
+                    user.getId()
+            );
+        }
 
         return  new NotificationResponse(savedNotification.getMessage(),
                 savedNotification.getSeverity().name(),
@@ -96,46 +117,70 @@ public class NotificationService {
                 .toList();
     }
 
-    @Transactional
-    public MonthlySummaryResponse generateMonthlySummaryResponse(CustomUserDetails currentUser){
+    @Transactional(readOnly = true)
+    public MonthlySummaryResponse generateMonthlySummaryResponse(CustomUserDetails currentUser) {
 
         User user = getAuthenticatedUSer(currentUser);
-        log.info("Generating DailyNotification for userId = {} ",user.getId());
 
-        YearMonth currentMonth = YearMonth.now();
-        LocalDate  startDate = currentMonth.atDay(1);
-        LocalDate endDate = currentMonth.atEndOfMonth();
+        log.info(
+                "Generating Monthly Summary for userId={}",
+                user.getId()
+        );
 
-        BigDecimal totalSpent = reportService.getCurrentMonthExpense(user);
+        BigDecimal totalSpent =
+                reportService.getCurrentMonthExpense(user);
 
-        BigDecimal monthlyBudget = budgetService.getCurrentMonthBudget(user);
+        BigDecimal monthlyBudget =
+                budgetService.getCurrentMonthBudget(user);
 
-        BigDecimal remainingBudget = monthlyBudget.subtract(totalSpent);
+        BigDecimal remainingBudget =
+                monthlyBudget.subtract(totalSpent);
 
-        String budgetStatus;
+        BudgetStatusResponse budgetStatusResponse =
+                reportService.getBudgetStatus(currentUser);
 
-        if(monthlyBudget.compareTo(BigDecimal.ZERO) == 0){
-            budgetStatus = "BUDGET_NOT _SET";
-        }
-        else{
-            BigDecimal usagePercentage = totalSpent
-                    .multiply(BigDecimal.valueOf(100)).divide(monthlyBudget,2, RoundingMode.HALF_UP);
+        String topCategory =
+                reportService.getCurrentMonthTopCategory(user);
 
-            if(usagePercentage.compareTo(BigDecimal.valueOf(100)) >= 0){
-                budgetStatus = "CRITICAL";
-            } else if (usagePercentage.compareTo(BigDecimal.valueOf(80)) >= 0) {
-               budgetStatus = "WARNING";
-            }
-            else{
-                budgetStatus = "SAFE";
-            }
-        }
-          String topCategory = reportService.getCurrentMonthTopCategory(user);
-
-        return new MonthlySummaryResponse(totalSpent,remainingBudget,budgetStatus,topCategory);
-
+        return new MonthlySummaryResponse(
+                totalSpent,
+                remainingBudget,
+                budgetStatusResponse.status(),
+                topCategory
+        );
     }
 
+    ///  create kyu ki upar wale me current user user kar rhe ahi and expense.service an scheduler me humne user use kiya hai is liye ....
+    @Transactional(readOnly = true)
+    public MonthlySummaryResponse generateMonthlySummaryResponse(User user) {
+
+        log.info(
+                "Generating Monthly Summary for userId={}",
+                user.getId()
+        );
+
+        BigDecimal totalSpent =
+                reportService.getCurrentMonthExpense(user);
+
+        BigDecimal monthlyBudget =
+                budgetService.getCurrentMonthBudget(user);
+
+        BigDecimal remainingBudget =
+                monthlyBudget.subtract(totalSpent);
+
+        BudgetStatusResponse budgetStatusResponse =
+                reportService.getBudgetStatus(user);
+
+        String topCategory =
+                reportService.getCurrentMonthTopCategory(user);
+
+        return new MonthlySummaryResponse(
+                totalSpent,
+                remainingBudget,
+                budgetStatusResponse.status(),
+                topCategory
+        );
+    }
     @Transactional(readOnly = true)
     public DailySummaryResponse generateDailySummaryResponse(CustomUserDetails currentUser){
 
@@ -149,11 +194,44 @@ public class NotificationService {
 
         long expenseCount = reportService.getTodayExpenseCount(user);
 
+        BudgetStatusResponse budgetStatus =
+                reportService.getBudgetStatus(user);
+
         return new DailySummaryResponse(
                 todaySpent,
                 todayTopCategory,
                 expenseCount,
-                currentDate
+                currentDate,
+                budgetStatus.recommendedLimit()
+        );
+    }
+
+    ///  create kyu ki upar wale me current user user kar rhe ahi and expense.service an scheduler me humne user use kiya hai is liye ....
+    @Transactional(readOnly = true)
+    public DailySummaryResponse generateDailySummaryResponse(User user) {
+
+        log.info("Generating daily summary response for userId={}", user.getId());
+
+        LocalDate currentDate = LocalDate.now();
+
+        BigDecimal todaySpent =
+                reportService.getTodaySpent(user, currentDate);
+
+        String todayTopCategory =
+                reportService.getTodayTopCategory(user);
+
+        long expenseCount =
+                reportService.getTodayExpenseCount(user);
+
+        BudgetStatusResponse budgetStatus =
+                reportService.getBudgetStatus(user);
+
+        return new DailySummaryResponse(
+                todaySpent,
+                todayTopCategory,
+                expenseCount,
+                currentDate,
+                budgetStatus.recommendedLimit()
         );
     }
 
@@ -197,14 +275,94 @@ public class NotificationService {
         );
     }
 
-    public boolean shouldSendInstantNotification(
-            CustomUserDetails currentUser){
-
+    public boolean shouldSendInstantNotification(CustomUserDetails currentUser){
         return userContextService
                 .getCurrentNotificationMode(currentUser)
                 == NotificationMode.NORMAL;
     }
 
+    private void sendEmail(User user,String subject, String body) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(user.getEmail());
+            message.setSubject(subject);
+            message.setText(body);
+
+            mailSender.send(message);
+
+            log.info(
+                    "Email sent successfully to {}",
+                    user.getEmail()
+            );
+        } catch (Exception e) {
+           log.error("Failed to send email to {}",user.getEmail(),e);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void sendFinancialSummary(User user) {
+
+        DailySummaryResponse daily =
+                generateDailySummaryResponse(user);
+
+        MonthlySummaryResponse monthly =
+                generateMonthlySummaryResponse(user);
+
+        String message = String.format(
+                """
+                 AI Financial Companion
+    
+                =======================================
+    
+                 DAILY SUMMARY
+    
+                Today's Spending : %s
+    
+                Top Category : %s
+    
+                Transactions : %d
+    
+                Recommended Daily Limit : %s
+    
+                =======================================
+    
+                 MONTHLY SUMMARY
+    
+                Monthly Budget : %s
+    
+                Total Spent : %s
+    
+                Remaining Budget : %s
+    
+                Budget Status : %s
+    
+                Top Category : %s
+                """,
+
+                daily.todaySpent(),
+                daily.todayTopCategory(),
+                daily.expenseCount(),
+                daily.recommendedDailyLimit(),
+
+                budgetService.getCurrentMonthBudget(user),
+                monthly.totalSpent(),
+                monthly.remainingBudget(),
+                monthly.budgetStatus(),
+                monthly.topCategory()
+        );
+
+        sendEmail(
+                user,
+                "AI Financial Companion - Financial Summary",
+                message
+        );
+
+        log.info(
+                "Financial summary email sent to userId={}",
+                user.getId()
+        );
+    }
     @Transactional
     public void generateAndStoreDailySummary(User user){
 
@@ -247,6 +405,10 @@ public class NotificationService {
         long expenseCount =
                 reportService.getTodayExpenseCount(user);
 
+        BudgetStatusResponse budgetStatus =
+                reportService.getBudgetStatus(user);
+
+
         String message = String.format(
                 """
                 Daily Summary
@@ -256,10 +418,13 @@ public class NotificationService {
                 Top Category: %s
     
                 Transactions: %d
+                
+                Recommended Daily Limit: %s
                 """,
                 todaySpent,
                 todayTopCategory,
-                expenseCount
+                expenseCount,
+                budgetStatus.recommendedLimit()
         );
 
         NotificationLog notification =
@@ -271,6 +436,8 @@ public class NotificationService {
                 );
 
         notificationRepo.save(notification);
+
+        sendEmail(user,"AI Financial Companion - Daily Summary",message);
 
         log.info(
                 "Daily summary stored for userId={}",
