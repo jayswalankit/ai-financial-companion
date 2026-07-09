@@ -264,7 +264,77 @@ public class GlobalExceptionHandler {
         );
     }
 
+// =========================================================
+// OTP NOT FOUND
+// =========================================================
 
+    @ExceptionHandler(OtpNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOtpNotFound(
+            OtpNotFoundException exception
+    ) {
+
+        log.warn("OTP not found: {}", exception.getMessage());
+
+        return buildError(
+                HttpStatus.NOT_FOUND,
+                "OTP Not Found",
+                exception.getMessage()
+        );
+    }
+
+    // =========================================================
+// INVALID OTP
+// =========================================================
+
+    @ExceptionHandler(InvalidOtpException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidOtp(
+            InvalidOtpException exception
+    ) {
+
+        log.warn("Invalid OTP: {}", exception.getMessage());
+
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                "Invalid OTP",
+                exception.getMessage()
+        );
+    }
+
+    // =========================================================
+// OTP EXPIRED
+// =========================================================
+
+    @ExceptionHandler(OtpExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleOtpExpired(
+            OtpExpiredException exception
+    ) {
+
+        log.warn("OTP expired: {}", exception.getMessage());
+
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                "OTP Expired",
+                exception.getMessage()
+        );
+    }
+
+    // =========================================================
+// OTP ATTEMPTS EXCEEDED
+// =========================================================
+
+    @ExceptionHandler(OtpAttemptExceededException.class)
+    public ResponseEntity<ErrorResponse> handleOtpAttemptExceeded(
+            OtpAttemptExceededException exception
+    ) {
+
+        log.warn("OTP attempts exceeded: {}", exception.getMessage());
+
+        return buildError(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "Too Many Attempts",
+                exception.getMessage()
+        );
+    }
 
     // =========================================================
     // INVALID ENDPOINT / 404
