@@ -1,11 +1,9 @@
 package com.aifinance.financialcompanion.auth.controller;
 
 
-import com.aifinance.financialcompanion.auth.dto.AuthResponse;
-import com.aifinance.financialcompanion.auth.dto.LoginRequest;
-import com.aifinance.financialcompanion.auth.dto.RegisterRequest;
-import com.aifinance.financialcompanion.auth.dto.RegisterResponse;
+import com.aifinance.financialcompanion.auth.dto.*;
 import com.aifinance.financialcompanion.auth.service.AuthService;
+import com.aifinance.financialcompanion.opt.dto.VerifyOtpRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,5 +32,33 @@ public class AuthController {
        AuthResponse response = authService.login(request);
        return new ResponseEntity<>(response,HttpStatus.OK);
   }
+
+    @PostMapping("/verify-signup")
+    public ResponseEntity<AuthResponse>
+    verifySignup(
+            @Valid
+            @RequestBody
+            VerifyOtpRequest request){
+
+        return ResponseEntity.ok(
+                authService.verifySignup(
+                        request
+                )
+        );
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<RegisterResponse> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+
+        return ResponseEntity.ok(authService.forgetPassword(request));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<RegisterResponse> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request) {
+
+        return ResponseEntity.ok(authService.changePassword(request));
+    }
 
 }

@@ -78,9 +78,7 @@ public class OtpService {
 
     }
 
-    private void sendOtpEmail(String email,
-                              String plainOtp,
-                              OtpPurpose purpose) {
+    private void sendOtpEmail(String email, String plainOtp, OtpPurpose purpose) {
 
         String subject;
 
