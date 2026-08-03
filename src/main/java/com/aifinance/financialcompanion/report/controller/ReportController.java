@@ -36,6 +36,13 @@ public class ReportController {
         return ResponseEntity.ok(reportService.getTopCategories(currentUser));
     }
 
+    @GetMapping("/category-highlights")
+    public ResponseEntity<List<CategoryPeriodHighlightResponse>> getCategoryHighlights(
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(reportService.getCategoryPeriodHighlights(currentUser));
+    }
+
     @GetMapping("/budget-status")
     public ResponseEntity<BudgetStatusResponse> getBudgetStatus(
             @AuthenticationPrincipal CustomUserDetails currentUser

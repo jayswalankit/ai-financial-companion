@@ -51,13 +51,25 @@ public class NotificationService {
     public NotificationResponse createNotification(CustomUserDetails currentUser, String message, NotificationSeverity severity){
 
         User user = getAuthenticatedUSer(currentUser);
+        NotificationMode notificationMode =
+                userContextService.getCurrentNotificationMode(currentUser);
+
+        if (notificationMode == NotificationMode.SILENT) {
+            log.info(
+                    "Silent mode enabled. Notification skipped for userId={}, severity={}",
+                    user.getId(),
+                    severity
+            );
+            return null;
+        }
+
         log.info("Creating notification for userId = {},severity = {}",user.getId(),severity);
 
         NotificationLog notification = new NotificationLog(user,message,severity,null);
 
         NotificationLog savedNotification = notificationRepo.save(notification);
 
-        if(shouldSendInstantNotification(currentUser)){
+        if(shouldSendInstantNotification(currentUser, severity)){
             sendEmail(user,"AI Financial Companion",message);
 
             log.info("Instant email sent to {}",
@@ -65,8 +77,10 @@ public class NotificationService {
         }
         else{
             log.info(
-                    "Silent mode enabled. Instant email skipped for userId={}",
+                    "Instant email skipped for userId={} because severity={} does not require email",
                     user.getId()
+                    ,
+                    severity
             );
         }
 
@@ -275,10 +289,12 @@ public class NotificationService {
         );
     }
 
-    public boolean shouldSendInstantNotification(CustomUserDetails currentUser){
+    public boolean shouldSendInstantNotification(CustomUserDetails currentUser,
+                                                 NotificationSeverity severity){
         return userContextService
                 .getCurrentNotificationMode(currentUser)
-                == NotificationMode.NORMAL;
+                == NotificationMode.NORMAL
+                && severity == NotificationSeverity.CRITICAL;
     }
 
     private void sendEmail(User user,String subject, String body) {

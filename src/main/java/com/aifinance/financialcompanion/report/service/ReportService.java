@@ -44,89 +44,113 @@ public class ReportService {
     private static final BigDecimal WARNING_THRESHOLD_PERCENT = new BigDecimal("80");
 
     @Transactional(readOnly = true)
-   public DashboardSummaryResponse getDashboardSummary(CustomUserDetails currentUser){
+    public DashboardSummaryResponse getDashboardSummary(CustomUserDetails currentUser){
 
-    User user = getAuthenticatedUser(currentUser);
-    log.info("Generating dashboard summary for userId = {}",user.getId());
+        User user = getAuthenticatedUser(currentUser);
+        log.info("Generating dashboard summary for userId = {}",user.getId());
 
-    BigDecimal totalExpense = safe(reportRepository.getTotalExpenseByUser(user));
+        BigDecimal totalExpense = safe(reportRepository.getTotalExpenseByUser(user));
 
-    Long totalTransaction = safeCount(reportRepository.getTotalTransactionCountByUser(user));
+        Long totalTransaction = safeCount(reportRepository.getTotalTransactionCountByUser(user));
 
-    BigDecimal averageExpense = calculateAverageExpense(totalExpense,totalTransaction);
+        YearMonth currentMonth = YearMonth.now();
 
-    YearMonth currentMonth = YearMonth.now();
+        BigDecimal currentMonthExpense = getMonthExpense(user,currentMonth);
 
-    BigDecimal currentMonthExpense = getMonthExpense(user,currentMonth);
+        BigDecimal previousMonthExpense = getMonthExpense(user,currentMonth.minusMonths(1));
 
-    BigDecimal previousMonthExpense = getMonthExpense(user,currentMonth.minusMonths(1));
+        BigDecimal averageExpense = calculateCurrentMonthAverageExpense(currentMonthExpense);
 
-    BigDecimal monthOverMonthDifference = currentMonthExpense.subtract(previousMonthExpense);
+        BigDecimal monthOverMonthDifference = currentMonthExpense.subtract(previousMonthExpense);
 
 
-   LocalDate today = LocalDate.now();
-   LocalDate startOfYear = today.withDayOfYear(1);
+        LocalDate today = LocalDate.now();
+        LocalDate startOfYear = today.withDayOfYear(1);
 
-  BigDecimal thisYearExpense = safe(reportRepository.getTotalExpenseByUserAndDateBetween(user,startOfYear,today));
+        BigDecimal thisYearExpense = safe(reportRepository.getTotalExpenseByUserAndDateBetween(user,startOfYear,today));
 
-    return new DashboardSummaryResponse(totalExpense,
-            totalTransaction,
-            averageExpense,
-            currentMonthExpense,
-            previousMonthExpense,
-            monthOverMonthDifference,
-            thisYearExpense);
-}
+        return new DashboardSummaryResponse(totalExpense,
+                totalTransaction,
+                averageExpense,
+                currentMonthExpense,
+                previousMonthExpense,
+                monthOverMonthDifference,
+                thisYearExpense);
+    }
 
-@Transactional(readOnly = true)
- public List<CategorySummaryResponse> getTopCategories(CustomUserDetails currentUser){
-    User user = getAuthenticatedUser(currentUser);
-    return getTopCategoriesForUser(user);
-}
+    @Transactional(readOnly = true)
+    public List<CategorySummaryResponse> getTopCategories(CustomUserDetails currentUser){
+        User user = getAuthenticatedUser(currentUser);
+        YearMonth currentMonth = YearMonth.now();
+        return getTopCategoriesForRange(user, currentMonth.atDay(1), currentMonth.atEndOfMonth());
+    }
 
-@Transactional(readOnly = true)
- public BudgetStatusResponse getBudgetStatus(CustomUserDetails currentUser){
+    @Transactional(readOnly = true)
+    public List<CategoryPeriodHighlightResponse> getCategoryPeriodHighlights(CustomUserDetails currentUser){
+        User user = getAuthenticatedUser(currentUser);
+
+        LocalDate today = LocalDate.now();
+        YearMonth currentMonth = YearMonth.now();
+        YearMonth previousMonth = currentMonth.minusMonths(1);
+        LocalDate monthStart = currentMonth.atDay(1);
+        LocalDate monthEnd = currentMonth.atEndOfMonth();
+        LocalDate previousMonthStart = previousMonth.atDay(1);
+        LocalDate previousMonthEnd = previousMonth.atEndOfMonth();
+        LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate yearStart = today.withDayOfYear(1);
+
+        return List.of(
+                buildCategoryHighlight(user, "WEEK", "This week", weekStart, today),
+                buildCategoryHighlight(user, "MONTH", "This month", monthStart, monthEnd),
+                buildCategoryHighlight(user, "PREVIOUS_MONTH", "Previous month", previousMonthStart, previousMonthEnd),
+                buildCategoryHighlight(user, "YEAR", "This year", yearStart, today),
+                buildCategoryHighlight(user, "TOTAL", "All time", null, null)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public BudgetStatusResponse getBudgetStatus(CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
 
         MonthlyBudget currentBudget = getCurrentMonthBudget(user);
 
-    BigDecimal currentSpent = getMonthExpense(user,YearMonth.now());
+        BigDecimal currentSpent = getMonthExpense(user,YearMonth.now());
 
-    if(currentBudget == null){
-        return new BudgetStatusResponse(
-                BigDecimal.ZERO,
-                currentSpent,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                "BUDGET_NOT_SET",
-                "Set Your Budget"
-        );
-    }
+        if(currentBudget == null){
+            return new BudgetStatusResponse(
+                    BigDecimal.ZERO,
+                    currentSpent,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    "BUDGET_NOT_SET",
+                    "Set Your Budget"
+            );
+        }
 
-    BigDecimal monthlyBudget = currentBudget.getBudgetAmount();
+        BigDecimal monthlyBudget = currentBudget.getBudgetAmount();
 
         BigDecimal remainingBudget = monthlyBudget.subtract(currentSpent);
 
         int remainingDays  = getRemainingDaysInCurrentMonth();
 
-    BigDecimal recommendedDailyLimit;
+        BigDecimal recommendedDailyLimit;
 
-    if (remainingBudget.compareTo(BigDecimal.ZERO) <= 0) {
+        if (remainingBudget.compareTo(BigDecimal.ZERO) <= 0) {
 
-        recommendedDailyLimit = BigDecimal.ZERO;
+            recommendedDailyLimit = BigDecimal.ZERO;
 
-    } else if (remainingDays <= 0) {
+        } else if (remainingDays <= 0) {
 
-        recommendedDailyLimit = BigDecimal.ZERO;
+            recommendedDailyLimit = BigDecimal.ZERO;
 
-    } else {
+        } else {
 
-        recommendedDailyLimit =
-                remainingBudget.divide(
-                        BigDecimal.valueOf(remainingDays), MONEY_SCALE, RoundingMode.HALF_UP
-                );
-    }
+            recommendedDailyLimit =
+                    remainingBudget.divide(
+                            BigDecimal.valueOf(remainingDays), MONEY_SCALE, RoundingMode.HALF_UP
+                    );
+        }
 
         String status = resolveSeverity(currentSpent,monthlyBudget);
 
@@ -146,9 +170,9 @@ public class ReportService {
                 status,
                 advice
         );
-}
+    }
 
-///  for notification service
+    ///  for notification service
     public BudgetStatusResponse getBudgetStatus(User user) {
 
         MonthlyBudget currentBudget = getCurrentMonthBudget(user);
@@ -212,8 +236,8 @@ public class ReportService {
         );
     }
 
-@Transactional(readOnly = true)
-public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser){
+    @Transactional(readOnly = true)
+    public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
         boolean tripMode = userContextService.isTripMode(currentUser);
@@ -224,48 +248,48 @@ public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser
 
         MonthlyBudget currentBudget = getCurrentMonthBudget(user);
 
-    if(currentBudget == null){
-        return List.of(
-                new InsightResponse(
-                        "Set a monthly budget to unlock smarter spending insights.","INFO"
-                )
-        );
-    }
+        if(currentBudget == null){
+            return List.of(
+                    new InsightResponse(
+                            "Set a monthly budget to unlock smarter spending insights.","INFO"
+                    )
+            );
+        }
 
         BigDecimal monthlyBudget = currentBudget.getBudgetAmount();
 
         List<InsightResponse> insights = new ArrayList<>();
 
-    List<CategoryGrowthResponse> growths = getCategoryGrowth(currentUser);
+        List<CategoryGrowthResponse> growths = getCategoryGrowth(currentUser);
 
-       for(CategoryGrowthResponse growth : growths){
+        for(CategoryGrowthResponse growth : growths){
 
-           log.info(
-                   "Category = {}, Growth = {}",
-                   growth.categoryName(),
-                   growth.growthPercentage()
-           );
+            log.info(
+                    "Category = {}, Growth = {}",
+                    growth.categoryName(),
+                    growth.growthPercentage()
+            );
 
-           if(tripMode && growth.categoryName().equalsIgnoreCase("Trip")){
-             continue;
-         }
+            if(tripMode && growth.categoryName().equalsIgnoreCase("Trip")){
+                continue;
+            }
 
-         if(medicalMode && growth.categoryName().equalsIgnoreCase("Medical")){
-             continue;
-         }
+            if(medicalMode && growth.categoryName().equalsIgnoreCase("Medical")){
+                continue;
+            }
 
-           log.info(
-                   "Compare Result = {}",
-                   growth.growthPercentage()
-                           .compareTo(BigDecimal.valueOf(50))
-           );
+            log.info(
+                    "Compare Result = {}",
+                    growth.growthPercentage()
+                            .compareTo(BigDecimal.valueOf(50))
+            );
 
-         if(growth.growthPercentage()
-                 .compareTo(BigDecimal.valueOf(50)) > 0){
-             log.info("ADDING WARNING FOR {}", growth.categoryName());
-             insights.add(new InsightResponse(growth.categoryName() + " spending increased by " + growth.growthPercentage() + "% compared to last month","WARNING"));
-         }
-       }
+            if(growth.growthPercentage()
+                    .compareTo(BigDecimal.valueOf(50)) > 0){
+                log.info("ADDING WARNING FOR {}", growth.categoryName());
+                insights.add(new InsightResponse(growth.categoryName() + " spending increased by " + growth.growthPercentage() + "% compared to last month","WARNING"));
+            }
+        }
 
         if(currentSpent.compareTo(monthlyBudget) > 0){
             insights.add(new InsightResponse("You have exceeded your monthly budget","CRITICAL"));
@@ -285,20 +309,20 @@ public List<InsightResponse> generateBasicInsights(CustomUserDetails currentUser
         }
 
         addBudgetVelocityInsight(user
-        ,monthlyBudget,insights);
+                ,monthlyBudget,insights);
 
         log.info("Generated {} basic insights for userId = {}", insights.size(),user.getId());
         return insights;
-}
+    }
 
-@Transactional(readOnly = true)
-public List<WeeklyTrendResponse> getWeeklyTrend(CustomUserDetails  currentUser){
+    @Transactional(readOnly = true)
+    public List<WeeklyTrendResponse> getWeeklyTrend(CustomUserDetails  currentUser){
         User user = getAuthenticatedUser(currentUser);
         return getWeeklyTrendByUser(user);
-}
+    }
 
-@Transactional(readOnly = true)
-public MonthlyComparisonResponse getMonthlyComparison(CustomUserDetails currentUser){
+    @Transactional(readOnly = true)
+    public MonthlyComparisonResponse getMonthlyComparison(CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
 
@@ -314,7 +338,7 @@ public MonthlyComparisonResponse getMonthlyComparison(CustomUserDetails currentU
             percentageChange = BigDecimal.valueOf(100);
         }
         else{
-        percentageChange = currentMonthExpense.subtract(previousMonthExpense).divide(previousMonthExpense,MONEY_SCALE,RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+            percentageChange = currentMonthExpense.subtract(previousMonthExpense).divide(previousMonthExpense,MONEY_SCALE,RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
         }
 
         String trend;
@@ -336,10 +360,10 @@ public MonthlyComparisonResponse getMonthlyComparison(CustomUserDetails currentU
                 previousMonthExpense,
                 percentageChange,
                 trend);
-}
+    }
 
-@Transactional(readOnly = true)
-public FinancialHealthResponse getFinancialHealth(CustomUserDetails currentUser){
+    @Transactional(readOnly = true)
+    public FinancialHealthResponse getFinancialHealth(CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
 
@@ -383,66 +407,66 @@ public FinancialHealthResponse getFinancialHealth(CustomUserDetails currentUser)
                 remainingBudget,
                 budgetUsagePercentage,
                 financialStatus);
-}
+    }
 
-@Transactional(readOnly = true)
-public SpendingPatternResponse getSpendingPattern(CustomUserDetails currentUser){
+    @Transactional(readOnly = true)
+    public SpendingPatternResponse getSpendingPattern(CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
 
         YearMonth currentMonth = YearMonth.now();
 
         List<CategoryExpenseProjection>allTimeTopCategories = reportRepository.findTopCategoriesByUser(user,PageRequest.of(0,1));
-         String allTimeHighestSpendingCategory = "Not spending Yet";
-         BigDecimal allTimeHighestSpendingAmount = BigDecimal.ZERO;
+        String allTimeHighestSpendingCategory = "Not spending Yet";
+        BigDecimal allTimeHighestSpendingAmount = BigDecimal.ZERO;
 
-         if(!allTimeTopCategories.isEmpty()){
-             CategoryExpenseProjection allTimeTopCategory = allTimeTopCategories.getFirst();
-             allTimeHighestSpendingCategory = allTimeTopCategory.getCategoryName();
-             allTimeHighestSpendingAmount = allTimeTopCategory.getTotalAmount();
-         }
+        if(!allTimeTopCategories.isEmpty()){
+            CategoryExpenseProjection allTimeTopCategory = allTimeTopCategories.getFirst();
+            allTimeHighestSpendingCategory = allTimeTopCategory.getCategoryName();
+            allTimeHighestSpendingAmount = allTimeTopCategory.getTotalAmount();
+        }
 
-         LocalDate startDate = currentMonth.atDay(1);
-         LocalDate endDate = currentMonth.atEndOfMonth();
+        LocalDate startDate = currentMonth.atDay(1);
+        LocalDate endDate = currentMonth.atEndOfMonth();
 
-         List<CategoryExpenseProjection>monthlyTopCategories = reportRepository.findTopCategoriesByUserAndDateBetween(user,startDate,endDate,PageRequest.of(0,1));
-         String currentMonthHighestCategory = "Not spending Yet";
-         BigDecimal currentMonthHighestCategoryAmount = BigDecimal.ZERO;
+        List<CategoryExpenseProjection>monthlyTopCategories = reportRepository.findTopCategoriesByUserAndDateBetween(user,startDate,endDate,PageRequest.of(0,1));
+        String currentMonthHighestCategory = "Not spending Yet";
+        BigDecimal currentMonthHighestCategoryAmount = BigDecimal.ZERO;
 
-         if(!monthlyTopCategories.isEmpty()){
-             CategoryExpenseProjection monthlyTopCategory = monthlyTopCategories.getFirst();
-             currentMonthHighestCategory = monthlyTopCategory.getCategoryName();
-             currentMonthHighestCategoryAmount = safe(monthlyTopCategory.getTotalAmount());
-         }
+        if(!monthlyTopCategories.isEmpty()){
+            CategoryExpenseProjection monthlyTopCategory = monthlyTopCategories.getFirst();
+            currentMonthHighestCategory = monthlyTopCategory.getCategoryName();
+            currentMonthHighestCategoryAmount = safe(monthlyTopCategory.getTotalAmount());
+        }
 
-         BigDecimal monthTotalExpense = safe(reportRepository.getTotalExpenseByUserAndDateBetween(user,startDate,endDate));
-         int dayPassed = LocalDate.now().getDayOfMonth();
+        BigDecimal monthTotalExpense = safe(reportRepository.getTotalExpenseByUserAndDateBetween(user,startDate,endDate));
+        int dayPassed = LocalDate.now().getDayOfMonth();
 
-         BigDecimal averageDailyExpenses = monthTotalExpense.divide(BigDecimal.valueOf(dayPassed),MONEY_SCALE,RoundingMode.HALF_UP);
+        BigDecimal averageDailyExpenses = monthTotalExpense.divide(BigDecimal.valueOf(dayPassed),MONEY_SCALE,RoundingMode.HALF_UP);
 
-         BigDecimal highestSingleExpense = safe(reportRepository.getHighestExpenseByUserAndDateBetween(user,startDate,endDate));
+        BigDecimal highestSingleExpense = safe(reportRepository.getHighestExpenseByUserAndDateBetween(user,startDate,endDate));
 
-         LocalDate highestExpenseDate = null;
+        LocalDate highestExpenseDate = null;
 
-         Expense topExpense = reportRepository.findTopExpenseByUserAndDateBetween(user,startDate,endDate);
+        Expense topExpense = reportRepository.findTopExpenseByUserAndDateBetween(user,startDate,endDate);
 
-         if(topExpense != null){
-             highestExpenseDate = topExpense.getExpenseDate();
-         }
+        if(topExpense != null){
+            highestExpenseDate = topExpense.getExpenseDate();
+        }
 
-         log.info("Generated spending pattern for userId = {}",user.getId());
+        log.info("Generated spending pattern for userId = {}",user.getId());
 
-         return new SpendingPatternResponse(allTimeHighestSpendingCategory,
-                 allTimeHighestSpendingAmount,
-                 currentMonthHighestCategory,
-                 currentMonthHighestCategoryAmount,
-                 averageDailyExpenses,
-                 highestSingleExpense,
-                 highestExpenseDate);
-}
+        return new SpendingPatternResponse(allTimeHighestSpendingCategory,
+                allTimeHighestSpendingAmount,
+                currentMonthHighestCategory,
+                currentMonthHighestCategoryAmount,
+                averageDailyExpenses,
+                highestSingleExpense,
+                highestExpenseDate);
+    }
 
-@Transactional(readOnly = true)
-public List<CategoryGrowthResponse> getCategoryGrowth(CustomUserDetails currentUser){
+    @Transactional(readOnly = true)
+    public List<CategoryGrowthResponse> getCategoryGrowth(CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
 
@@ -456,69 +480,76 @@ public List<CategoryGrowthResponse> getCategoryGrowth(CustomUserDetails currentU
 
         List<CategoryGrowthProjection> projections = reportRepository.getCategoryGrowthComparison(user,currentStartDate,currentEndDate,previousStartDate,previousEndDate);
 
-    log.info(
-            "Fetched category growth analysis for userId = {}, totalCategories = {}",
-            user.getId(),
-            projections.size()
-    );
+        log.info(
+                "Fetched category growth analysis for userId = {}, totalCategories = {}",
+                user.getId(),
+                projections.size()
+        );
 
-    return projections.stream()
-            .map(p -> {BigDecimal currentMonthAmount = safe(p.getCurrentMonthAmount());
-            BigDecimal previousMonthAmount = safe(p.getPreviousMonthAmount());
-            BigDecimal growthPercentage;
-            if(previousMonthAmount.compareTo(BigDecimal.ZERO) == 0){
-                if(currentMonthAmount.compareTo(BigDecimal.ZERO) > 0){
-                    growthPercentage = BigDecimal.valueOf(100);
-                }
-                else{
-                    growthPercentage = BigDecimal.ZERO;
-                }
+        return projections.stream()
+                .map(p -> {BigDecimal currentMonthAmount = safe(p.getCurrentMonthAmount());
+                    BigDecimal previousMonthAmount = safe(p.getPreviousMonthAmount());
+                    BigDecimal growthPercentage;
+                    if(previousMonthAmount.compareTo(BigDecimal.ZERO) == 0){
+                        if(currentMonthAmount.compareTo(BigDecimal.ZERO) > 0){
+                            growthPercentage = BigDecimal.valueOf(100);
+                        }
+                        else{
+                            growthPercentage = BigDecimal.ZERO;
+                        }
 
-            }
-            else{
-                growthPercentage = currentMonthAmount.subtract(previousMonthAmount).multiply(BigDecimal.valueOf(100)).divide(previousMonthAmount,MONEY_SCALE,RoundingMode.HALF_UP);
-            }
+                    }
+                    else{
+                        growthPercentage = currentMonthAmount.subtract(previousMonthAmount).multiply(BigDecimal.valueOf(100)).divide(previousMonthAmount,MONEY_SCALE,RoundingMode.HALF_UP);
+                    }
 
-            String trend;
+                    String trend;
 
-            int comparison = currentMonthAmount.compareTo(previousMonthAmount);
+                    int comparison = currentMonthAmount.compareTo(previousMonthAmount);
 
-            if(comparison < 0){
-               trend = "DECREASED";
-            } else if (comparison > 0) {
-                trend = "INCREASED";
-            }
-            else{
-                trend = "SAME";
-            }
+                    if(comparison < 0){
+                        trend = "DECREASED";
+                    } else if (comparison > 0) {
+                        trend = "INCREASED";
+                    }
+                    else{
+                        trend = "SAME";
+                    }
 
-            return  new CategoryGrowthResponse(p.getCategoryName(),
-                    currentMonthAmount,
-                    previousMonthAmount,
-                    growthPercentage,
-                    trend);
-            })
-            .toList();
+                    return  new CategoryGrowthResponse(p.getCategoryName(),
+                            currentMonthAmount,
+                            previousMonthAmount,
+                            growthPercentage,
+                            trend);
+                })
+                .toList();
 
-}
+    }
 
-private User getAuthenticatedUser(CustomUserDetails currentUser){
+    private User getAuthenticatedUser(CustomUserDetails currentUser){
         return userRepo.findById(currentUser.getUserId())
                 .orElseThrow(()->new UserNotFound("Authenticated User not found"));
     }
 
     private BigDecimal getMonthExpense(User user, YearMonth month){
-    LocalDate startDate = month.atDay(1);
-    LocalDate endDate = month.atEndOfMonth();
+        LocalDate startDate = month.atDay(1);
+        LocalDate endDate = month.atEndOfMonth();
 
-    return safe(reportRepository.getTotalExpenseByUserAndDateBetween(user,startDate,endDate));
+        return safe(reportRepository.getTotalExpenseByUserAndDateBetween(user,startDate,endDate));
     }
 
-    private BigDecimal calculateAverageExpense(BigDecimal totalExpense, Long totalTransaction){
-        if(totalTransaction == null || totalTransaction == 0L){
+    private BigDecimal calculateCurrentMonthAverageExpense(BigDecimal currentMonthExpense){
+        int currentDay = LocalDate.now().getDayOfMonth();
+
+        if(currentDay <= 0){
             return BigDecimal.ZERO;
         }
-        return  totalExpense.divide(BigDecimal.valueOf(totalTransaction),MONEY_SCALE, RoundingMode.HALF_UP);
+
+        return currentMonthExpense.divide(
+                BigDecimal.valueOf(currentDay),
+                MONEY_SCALE,
+                RoundingMode.HALF_UP
+        );
 
     }
 
@@ -526,6 +557,43 @@ private User getAuthenticatedUser(CustomUserDetails currentUser){
         List<CategoryExpenseProjection> projections = reportRepository.findTopCategoriesByUser(user,PageRequest.of(0,TOP_CATEGORIES_LIMIT));
         return projections.stream().map(p->new CategorySummaryResponse(p.getCategoryName(),safe(p.getTotalAmount())))
                 .toList();
+    }
+
+    private List<CategorySummaryResponse> getTopCategoriesForRange(User user, LocalDate startDate, LocalDate endDate) {
+        List<CategoryExpenseProjection> projections = reportRepository.findTopCategoriesByUserAndDateBetween(
+                user,
+                startDate,
+                endDate,
+                PageRequest.of(0, TOP_CATEGORIES_LIMIT)
+        );
+        return projections.stream()
+                .map(p -> new CategorySummaryResponse(p.getCategoryName(), safe(p.getTotalAmount())))
+                .toList();
+    }
+
+    private CategoryPeriodHighlightResponse buildCategoryHighlight(User user,
+                                                                   String period,
+                                                                   String label,
+                                                                   LocalDate startDate,
+                                                                   LocalDate endDate) {
+        List<CategorySummaryResponse> topCategories;
+        if(startDate == null || endDate == null){
+            topCategories = getTopCategoriesForUser(user);
+        } else {
+            topCategories = getTopCategoriesForRange(user, startDate, endDate);
+        }
+
+        if(topCategories.isEmpty()){
+            return new CategoryPeriodHighlightResponse(period, label, "No expenses yet", BigDecimal.ZERO);
+        }
+
+        CategorySummaryResponse topCategory = topCategories.getFirst();
+        return new CategoryPeriodHighlightResponse(
+                period,
+                label,
+                topCategory.categoryName(),
+                safe(topCategory.totalAmount())
+        );
     }
 
     private String getBudgetAdvice(BigDecimal currentSpent,
@@ -591,9 +659,15 @@ private User getAuthenticatedUser(CustomUserDetails currentUser){
         int currentDay = LocalDate.now().getDayOfMonth();
         int totalDays = YearMonth.now().lengthOfMonth();
 
+        // Guard: on the first couple of days of the month, "expected spend so far"
+        // (budget * day / totalDays) is tiny, so a single ordinary purchase can look
+        // like a huge multiple of it and wrongly trigger CRITICAL. Clamp the day used
+        // for this pace calculation to at least 3, so the check only kicks in once
+        // there's enough of the month elapsed for the ratio to be meaningful.
+        int paceDay = Math.max(currentDay, 3);
 
         BigDecimal expectedSpent = monthlyBudget
-                .multiply(BigDecimal.valueOf(currentDay))
+                .multiply(BigDecimal.valueOf(paceDay))
                 .divide(
                         BigDecimal.valueOf(totalDays),
                         2,
@@ -728,22 +802,20 @@ private User getAuthenticatedUser(CustomUserDetails currentUser){
 
     @Transactional(readOnly = true)
     public String getTodayTopCategory(User user){
-       LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now();
 
-       List<CategoryExpenseProjection> categories = reportRepository.findTopCategoriesByUserAndDateBetween(user,today,today,PageRequest.of(0,1));
+        List<CategoryExpenseProjection> categories = reportRepository.findTopCategoriesByUserAndDateBetween(user,today,today,PageRequest.of(0,1));
 
-       if(categories.isEmpty()){
-           return "N/A";
-       }
-       return categories.getFirst().getCategoryName();
+        if(categories.isEmpty()){
+            return "N/A";
+        }
+        return categories.getFirst().getCategoryName();
     }
 
     @Transactional(readOnly = true)
     public long getTodayExpenseCount(User user){
-         LocalDate currentDate = LocalDate.now();
+        LocalDate currentDate = LocalDate.now();
 
-         return  reportRepository.countByUserAndExpenseDate(user,currentDate);
+        return  reportRepository.countByUserAndExpenseDate(user,currentDate);
     }
 }
-
-

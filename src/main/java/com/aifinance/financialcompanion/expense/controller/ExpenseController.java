@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -79,19 +80,30 @@ public class ExpenseController {
         }
 
         List<Sort.Order> orders = new ArrayList<>();
-        for(String sortValue : sortValues){
-            String[] sortParts = sortValue.split(",");
-            String propert = sortParts[0].trim();
+        List<String> tokens = Arrays.stream(sortValues)
+                .filter(value -> value != null && !value.isBlank())
+                .flatMap(value -> Arrays.stream(value.split(",")))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .toList();
 
-            if(propert.isEmpty()){
+        for (int index = 0; index < tokens.size(); ) {
+            String property = tokens.get(index);
+
+            if (isDirectionToken(property)) {
+                index++;
                 continue;
             }
 
             Sort.Direction direction = Sort.Direction.DESC;
-            if(sortParts.length>1){
-                direction = Sort.Direction.fromString(sortParts[1].trim());
+            if (index + 1 < tokens.size() && isDirectionToken(tokens.get(index + 1))) {
+                direction = Sort.Direction.fromString(tokens.get(index + 1));
+                index += 2;
+            } else {
+                index++;
             }
-            orders.add(new Sort.Order(direction,propert));
+
+            orders.add(new Sort.Order(direction, property));
         }
 
         if(orders.isEmpty()){
@@ -100,6 +112,10 @@ public class ExpenseController {
         }
 
         return PageRequest.of(page,size,Sort.by(orders));
+    }
+
+    private boolean isDirectionToken(String token) {
+        return "asc".equalsIgnoreCase(token) || "desc".equalsIgnoreCase(token);
     }
 
 }

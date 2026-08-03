@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledger — Financial Companion</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        :root{
+          --ink:#12181f; --ink-2:#1a222c; --ink-3:#232d3a;
+          --paper:#f3f4ef; --paper-2:#ffffff; --paper-3:#eceee6;
+          --jade:#1f7a5c; --jade-deep:#14513d; --jade-soft:#e3efe9;
+          --amber:#c8912f; --amber-soft:#f7ecd7;
+          --brick:#b34a30; --brick-soft:#f6e2db;
+          --line-l:#dcdcd2; --line-d:#2b3542;
+          --text-l:#1b2027; --text-muted-l:#6b6f66;
+          --text-d:#e8e9e3; --text-muted-d:#8b93a0;
+          --font-display:'Fraunces', serif;
+          --font-body:'Inter', -apple-system, sans-serif;
+          --font-mono:'IBM Plex Mono', monospace;
+          --radius:10px;
+          --bg:var(--paper); --bg-card:var(--paper-2); --bg-sunk:var(--paper-3);
+          --text:var(--text-l); --text-muted:var(--text-muted-l); --line:var(--line-l);
+        }
+        html[data-theme="dark"]{
+          --bg:var(--ink); --bg-card:var(--ink-2); --bg-sunk:var(--ink-3);
+          --text:var(--text-d); --text-muted:var(--text-muted-d); --line:var(--line-d);
+          --jade-soft:#173328; --amber-soft:#3a2f16; --brick-soft:#3a201a;
+        }
+        *{box-sizing:border-box; margin:0; padding:0;}
+        body{
+          font-family:var(--font-body); background:var(--bg); color:var(--text);
+          min-height:100vh; transition:background .25s ease, color .25s ease;
+          -webkit-font-smoothing:antialiased;
+        }
+        ::selection{background:var(--jade); color:#fff;}
+        a{color:inherit;}
+        button{font-family:inherit; cursor:pointer;}
+        input,select,textarea{font-family:inherit; font-size:14px;}
+        .hidden{display:none !important;}
+        .mono{font-family:var(--font-mono);}
+        .num{font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+
+        /* ---------- scrollbar ---------- */
+        ::-webkit-scrollbar{width:8px; height:8px;}
+        ::-webkit-scrollbar-thumb{background:var(--line); border-radius:8px;}
+
+        /* ---------- focus ---------- */
+        a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{
+          outline:2px solid var(--jade); outline-offset:2px;
+        }
+
+        /* ================= AUTH ================= */
+        #auth-screen{
+          min-height:100vh; display:flex; align-items:center; justify-content:center;
+          padding:24px; background:
+            radial-gradient(circle at 15% 15%, var(--jade-soft) 0%, transparent 45%),
+            var(--bg);
+        }
+        .auth-card{
+          width:100%; max-width:420px; background:var(--bg-card); border:1px solid var(--line);
+          border-radius:16px; padding:40px 36px; position:relative; overflow:hidden;
+        }
+        .auth-card::before{
+          content:''; position:absolute; top:0; left:0; right:0; height:4px;
+          background:repeating-linear-gradient(90deg, var(--jade) 0 10px, transparent 10px 18px);
+        }
+        .brand{display:flex; align-items:center; gap:10px; margin-bottom:28px;}
+        .brand-mark{
+          width:34px; height:34px; border-radius:8px; background:var(--jade); color:#fff;
+          display:flex; align-items:center; justify-content:center; font-family:var(--font-display);
+          font-weight:700; font-size:18px; flex-shrink:0;
+        }
+        .brand-name{font-family:var(--font-display); font-weight:600; font-size:19px; letter-spacing:.2px;}
+        .auth-card h1{font-family:var(--font-display); font-size:26px; font-weight:600; margin-bottom:6px;}
+        .auth-card .sub{color:var(--text-muted); font-size:13.5px; margin-bottom:26px; line-height:1.5;}
+        .field{margin-bottom:16px;}
+        .field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+        .field input, .field select{
+          width:100%; padding:11px 13px; border-radius:8px; border:1px solid var(--line);
+          background:var(--bg-sunk); color:var(--text); font-size:14.5px; transition:border-color .15s;
+        }
+        .field input:focus, .field select:focus{border-color:var(--jade); outline:none;}
+        .field .hint{font-size:11.5px; color:var(--text-muted); margin-top:5px; line-height:1.4;}
+        .field-otp-row{display:flex; gap:8px;}
+        .field-otp-row input{flex:1;}
+
+        .btn{
+          display:inline-flex; align-items:center; justify-content:center; gap:8px;
+          padding:11px 18px; border-radius:8px; border:1px solid transparent; font-weight:600; font-size:14px;
+          transition:transform .1s ease, background .15s, border-color .15s, opacity .15s;
+        }
+        .btn:active{transform:scale(.98);}
+        .btn-primary{background:var(--jade); color:#fff;}
+        .btn-primary:hover{background:var(--jade-deep);}
+        .btn-block{width:100%;}
+        .btn-ghost{background:transparent; border-color:var(--line); color:var(--text);}
+        .btn-ghost:hover{border-color:var(--jade);}
+        .btn-danger{background:var(--brick); color:#fff;}
+        .btn-sm{padding:7px 12px; font-size:12.5px; border-radius:7px;}
+        .btn-icon{padding:8px; border-radius:7px; background:transparent; border:1px solid var(--line);}
+        .btn[disabled]{opacity:.55; cursor:not-allowed;}
+
+        .auth-foot{margin-top:20px; text-align:center; font-size:13.5px; color:var(--text-muted);}
+        .auth-foot button{background:none; border:none; color:var(--jade); font-weight:600; padding:0;}
+        .auth-error{
+          background:var(--brick-soft); color:var(--brick); border:1px solid var(--brick);
+          padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.4;
+        }
+        .auth-success{
+          background:var(--jade-soft); color:var(--jade-deep); border:1px solid var(--jade);
+          padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.4;
+        }
+        .api-base-toggle{
+          position:fixed; bottom:16px; left:16px; right:16px; max-width:420px; margin:0 auto;
+          font-size:11.5px; color:var(--text-muted); display:flex; gap:8px; align-items:center;
+          background:var(--bg-card); border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+        }
+        .api-base-toggle input{flex:1; background:transparent; border:none; color:var(--text); font-family:var(--font-mono); font-size:11.5px;}
+        .api-base-toggle input:focus{outline:none;}
+        .api-dot{width:7px; height:7px; border-radius:50%; background:var(--brick); flex-shrink:0;}
+        .api-dot.ok{background:var(--jade);}
+    </style>
+    <style>
+        /* ================= APP SHELL ================= */
+        #app{display:none; min-height:100vh;}
+        #app.active{display:flex;}
+        .sidebar{
+          width:232px; flex-shrink:0; background:var(--bg-card); border-right:1px solid var(--line);
+          display:flex; flex-direction:column; padding:22px 16px; position:sticky; top:0; height:100vh;
+        }
+        .sidebar .brand{padding:0 4px; margin-bottom:30px;}
+        .nav-list{list-style:none; display:flex; flex-direction:column; gap:3px; flex:1;}
+        .nav-item{
+          display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:8px;
+          color:var(--text-muted); font-size:14px; font-weight:500; border:none; background:none; width:100%; text-align:left;
+        }
+        .nav-item .ic{width:18px; text-align:center; font-size:15px;}
+        .nav-item:hover{background:var(--bg-sunk); color:var(--text);}
+        .nav-item.active{background:var(--jade-soft); color:var(--jade-deep); font-weight:600;}
+        .sidebar-foot{border-top:1px solid var(--line); padding-top:14px; margin-top:10px;}
+        .user-chip{display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px;}
+        .user-chip .avatar{
+          width:32px; height:32px; border-radius:50%; background:var(--jade); color:#fff; display:flex;
+          align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;
+        }
+        .user-chip .info{overflow:hidden;}
+        .user-chip .name{font-size:13px; font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;}
+        .user-chip .mail{font-size:11.5px; color:var(--text-muted); white-space:nowrap; text-overflow:ellipsis; overflow:hidden;}
+
+        .main{flex:1; min-width:0; display:flex; flex-direction:column;}
+        .topbar{
+          display:flex; align-items:center; justify-content:space-between; padding:18px 28px;
+          border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:5;
+        }
+        .topbar h2{font-family:var(--font-display); font-size:22px; font-weight:600;}
+        .topbar .sub{font-size:12.5px; color:var(--text-muted); margin-top:2px;}
+        .topbar-actions{display:flex; gap:10px; align-items:center;}
+        .content{padding:26px 28px 60px; flex:1;}
+        .mobile-menu-btn{display:none;}
+
+        /* ---- cards / grid ---- */
+        .grid{display:grid; gap:16px;}
+        .grid-4{grid-template-columns:repeat(4,1fr);}
+        .grid-3{grid-template-columns:repeat(3,1fr);}
+        .grid-2{grid-template-columns:repeat(2,1fr);}
+        @media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr);} .grid-3{grid-template-columns:repeat(2,1fr);}}
+        @media(max-width:640px){.grid-4,.grid-3,.grid-2{grid-template-columns:1fr;}}
+
+        .card{background:var(--bg-card); border:1px solid var(--line); border-radius:12px; padding:20px;}
+        .card h3{font-family:var(--font-display); font-size:16px; font-weight:600; margin-bottom:2px;}
+        .card .card-sub{font-size:12px; color:var(--text-muted); margin-bottom:14px;}
+
+        /* ledger stat card — signature element */
+        .ledger-stat{
+          background:var(--bg-card); border:1px solid var(--line); border-radius:10px;
+          padding:18px 18px 18px 22px; position:relative; overflow:hidden;
+        }
+        .ledger-stat::before{
+          content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+          background-image:linear-gradient(var(--bg) 50%, transparent 0%);
+          background-size:3px 10px; background-repeat:repeat-y;
+          background-color:var(--jade);
+        }
+        .ledger-stat .lbl{font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:600; margin-bottom:8px;}
+        .ledger-stat .val{font-family:var(--font-mono); font-size:26px; font-weight:600; letter-spacing:-.02em;}
+        .ledger-stat .delta{font-size:12px; margin-top:6px; font-family:var(--font-mono);}
+        .delta.up{color:var(--brick);} .delta.down{color:var(--jade);}
+        .ledger-stat.amber::before{background:var(--amber);}
+        .ledger-stat.brick::before{background:var(--brick);}
+
+        .empty-state{
+          text-align:center; padding:50px 20px; color:var(--text-muted);
+        }
+        .empty-state .ic{font-size:32px; margin-bottom:10px; opacity:.7;}
+        .empty-state h4{font-family:var(--font-display); color:var(--text); font-size:16px; margin-bottom:6px;}
+        .empty-state p{font-size:13px; max-width:340px; margin:0 auto 14px;}
+
+        /* ---- badges / pills ---- */
+        .badge{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:600;}
+        .badge-jade{background:var(--jade-soft); color:var(--jade-deep);}
+        .badge-amber{background:var(--amber-soft); color:var(--amber);}
+        .badge-brick{background:var(--brick-soft); color:var(--brick);}
+        .badge-muted{background:var(--bg-sunk); color:var(--text-muted);}
+
+        /* ---- tabs ---- */
+        .tabs{display:flex; gap:4px; background:var(--bg-sunk); padding:4px; border-radius:9px; width:max-content;}
+        .tab-btn{
+          padding:8px 16px; border:none; background:none; border-radius:6px; font-size:13px; font-weight:600; color:var(--text-muted);
+        }
+        .tab-btn.active{background:var(--bg-card); color:var(--text); box-shadow:0 1px 2px rgba(0,0,0,.08);}
+
+        /* ---- view switcher (reports) ---- */
+        .view-switch{display:flex; gap:8px; flex-wrap:wrap;}
+        .view-chip{
+          display:flex; align-items:center; gap:7px; padding:9px 14px; border-radius:9px; border:1px solid var(--line);
+          background:var(--bg-card); font-size:13px; font-weight:600; color:var(--text-muted);
+        }
+        .view-chip.active{border-color:var(--jade); background:var(--jade-soft); color:var(--jade-deep);}
+
+        /* ---- search / filter bar ---- */
+        .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:18px;}
+        .search-box{
+          display:flex; align-items:center; gap:8px; background:var(--bg-sunk); border:1px solid var(--line);
+          border-radius:8px; padding:9px 12px; min-width:220px; flex:1;
+        }
+        .search-box input{background:none; border:none; flex:1; color:var(--text); font-size:13.5px;}
+        .search-box input:focus{outline:none;}
+        .toolbar select, .toolbar input[type=date]{
+          padding:9px 12px; border-radius:8px; border:1px solid var(--line); background:var(--bg-sunk); color:var(--text); font-size:13px;
+        }
+
+        /* ---- table ---- */
+        .table-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:12px;}
+        table{width:100%; border-collapse:collapse; font-size:13.5px;}
+        thead th{
+          text-align:left; padding:12px 16px; background:var(--bg-sunk); color:var(--text-muted);
+          font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; white-space:nowrap;
+        }
+        tbody td{padding:12px 16px; border-top:1px solid var(--line); vertical-align:middle;}
+        tbody tr:hover{background:var(--bg-sunk);}
+        .row-actions{display:flex; gap:6px;}
+        .pagination{display:flex; align-items:center; justify-content:space-between; margin-top:14px; font-size:13px; color:var(--text-muted);}
+        .pagination .pgbtns{display:flex; gap:6px;}
+
+        /* ---- category chips ---- */
+        .cat-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px;}
+        .cat-card{
+          background:var(--bg-card); border:1px solid var(--line); border-radius:12px; padding:16px; cursor:pointer;
+          transition:border-color .15s, transform .1s;
+        }
+        .cat-card:hover{border-color:var(--jade); transform:translateY(-1px);}
+        .cat-card .top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;}
+        .cat-card .cat-ic{
+          width:36px; height:36px; border-radius:9px; background:var(--jade-soft); color:var(--jade-deep);
+          display:flex; align-items:center; justify-content:center; font-size:16px;
+        }
+        .cat-card .name{font-weight:600; font-size:14.5px; margin-bottom:2px;}
+        .cat-card .type{font-size:11.5px; color:var(--text-muted);}
+        .cat-card .menu-dots{background:none; border:none; color:var(--text-muted); font-size:16px; padding:4px;}
+
+        /* ---- modal ---- */
+        .modal-overlay{
+          position:fixed; inset:0; background:rgba(10,14,18,.55); display:flex; align-items:center; justify-content:center;
+          padding:20px; z-index:100;
+        }
+        .modal{
+          background:var(--bg-card); border-radius:14px; width:100%; max-width:480px; max-height:88vh; overflow-y:auto;
+          border:1px solid var(--line);
+        }
+        .modal-head{display:flex; justify-content:space-between; align-items:center; padding:18px 22px; border-bottom:1px solid var(--line);}
+        .modal-head h3{font-family:var(--font-display); font-size:18px; font-weight:600;}
+        .modal-close{background:none; border:none; font-size:18px; color:var(--text-muted); padding:4px 8px;}
+        .modal-body{padding:20px 22px;}
+        .modal-foot{display:flex; justify-content:flex-end; gap:10px; padding:16px 22px; border-top:1px solid var(--line);}
+
+        /* ---- toggle switch ---- */
+        .switch{position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;}
+        .switch input{opacity:0; width:0; height:0;}
+        .slider{position:absolute; cursor:pointer; inset:0; background:var(--bg-sunk); border:1px solid var(--line); border-radius:24px; transition:.2s;}
+        .slider::before{content:''; position:absolute; height:16px; width:16px; left:3px; top:3px; background:var(--text-muted); border-radius:50%; transition:.2s;}
+        input:checked + .slider{background:var(--jade); border-color:var(--jade);}
+        input:checked + .slider::before{transform:translateX(18px); background:#fff;}
+        .opt-row{display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line);}
+        .opt-row:last-child{border-bottom:none;}
+        .opt-row .opt-label{font-weight:600; font-size:14px;}
+        .opt-row .opt-desc{font-size:12px; color:var(--text-muted); margin-top:2px;}
+
+        /* ---- notification list ---- */
+        .notif-item{display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line);}
+        .notif-item:last-child{border-bottom:none;}
+        .notif-ic{width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px;}
+        .notif-item.crit .notif-ic{background:var(--brick-soft); color:var(--brick);}
+        .notif-item.warn .notif-ic{background:var(--amber-soft); color:var(--amber);}
+        .notif-item.info .notif-ic{background:var(--jade-soft); color:var(--jade-deep);}
+        .notif-msg{font-size:13.5px; line-height:1.45;}
+        .notif-time{font-size:11.5px; color:var(--text-muted); margin-top:3px;}
+
+        /* ---- chart container ---- */
+        .chart-box{position:relative; height:280px;}
+        .chart-box.sm{height:200px;}
+
+        /* ---- toast ---- */
+        #toast-wrap{position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:200;}
+        .toast{
+          background:var(--ink); color:#fff; padding:12px 16px; border-radius:9px; font-size:13.5px; box-shadow:0 8px 20px rgba(0,0,0,.25);
+          display:flex; align-items:center; gap:8px; max-width:320px; animation:toastIn .2s ease;
+        }
+        .toast.err{background:var(--brick);}
+        .toast.ok{background:var(--jade-deep);}
+        @keyframes toastIn{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+
+        /* ---- bottom nav (mobile) ---- */
+        .bottom-nav{display:none;}
+
+        @media(max-width:880px){
+          .sidebar{position:fixed; left:-240px; top:0; z-index:50; transition:left .2s ease; box-shadow:0 0 0 100vw rgba(0,0,0,0);}
+          .sidebar.open{left:0; box-shadow:0 0 0 100vw rgba(0,0,0,.4);}
+          .mobile-menu-btn{display:inline-flex;}
+          .content{padding:18px 16px 90px;}
+          .topbar{padding:14px 16px;}
+          .bottom-nav{
+            display:flex; position:fixed; bottom:0; left:0; right:0; background:var(--bg-card); border-top:1px solid var(--line);
+            z-index:40; padding:6px 4px;
+          }
+          .bottom-nav button{
+            flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; background:none; border:none;
+            padding:6px 2px; font-size:10px; color:var(--text-muted);
+          }
+          .bottom-nav button.active{color:var(--jade);}
+          .bottom-nav .ic{font-size:17px;}
+        }
+    </style>
+</head>
+<body>
+
+<!-- ================= AUTH SCREEN ================= -->
+<div id="auth-screen">
+    <div class="auth-card">
+        <div class="brand"><div class="brand-mark">L</div><div class="brand-name">Ledger</div></div>
+
+        <!-- LOGIN -->
+        <div id="view-login" class="auth-view">
+            <h1>Welcome back</h1>
+            <p class="sub">Sign in to keep tracking where your money goes.</p>
+            <div id="login-msg"></div>
+            <div class="field"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com"></div>
+            <div class="field"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"></div>
+            <button class="btn btn-primary btn-block" id="btn-login">Sign in</button>
+            <p class="auth-foot">New here? <button data-go="signup">Create an account</button></p>
+            <p class="auth-foot"><button data-go="forgot">Forgot password?</button></p>
+        </div>
+
+        <!-- SIGNUP -->
+        <div id="view-signup" class="auth-view hidden">
+            <h1>Create your account</h1>
+            <p class="sub">Set up Ledger — we'll send a one-time code to verify your email.</p>
+            <div id="signup-msg"></div>
+            <div class="field"><label>Username</label><input type="text" id="signup-username" placeholder="jane_doe"></div>
+            <div class="field"><label>Email</label><input type="email" id="signup-email" placeholder="you@example.com"></div>
+            <div class="field"><label>Password</label><input type="password" id="signup-password" placeholder="At least 9 characters">
+                <div class="hint">Minimum 9 characters.</div>
+            </div>
+            <button class="btn btn-primary btn-block" id="btn-signup">Send verification code</button>
+            <p class="auth-foot">Already have an account? <button data-go="login">Sign in</button></p>
+        </div>
+
+        <!-- VERIFY SIGNUP OTP -->
+        <div id="view-verify" class="auth-view hidden">
+            <h1>Check your email</h1>
+            <p class="sub">Enter the 6-digit code we sent to <strong id="verify-email-label"></strong>.</p>
+            <div id="verify-msg"></div>
+            <div class="field"><label>Verification code</label><input type="text" maxlength="6" id="verify-otp" placeholder="000000"></div>
+            <button class="btn btn-primary btn-block" id="btn-verify">Verify & continue</button>
+            <p class="auth-foot"><button id="btn-resend-signup">Resend code</button></p>
+            <p class="auth-foot"><button data-go="login">Back to sign in</button></p>
+        </div>
+
+        <!-- FORGOT PASSWORD -->
+        <div id="view-forgot" class="auth-view hidden">
+            <h1>Reset your password</h1>
+            <p class="sub">Enter your account email — we'll send you a code to reset it.</p>
+            <div id="forgot-msg"></div>
+            <div class="field"><label>Email</label><input type="email" id="forgot-email" placeholder="you@example.com"></div>
+            <button class="btn btn-primary btn-block" id="btn-forgot">Send reset code</button>
+            <p class="auth-foot"><button data-go="login">Back to sign in</button></p>
+        </div>
+
+        <!-- RESET PASSWORD (after otp) -->
+        <div id="view-reset" class="auth-view hidden">
+            <h1>Set a new password</h1>
+            <p class="sub">Enter the code sent to <strong id="reset-email-label"></strong> and your new password.</p>
+            <div id="reset-msg"></div>
+            <div class="field"><label>Reset code</label><input type="text" maxlength="6" id="reset-otp" placeholder="000000"></div>
+            <div class="field"><label>New password</label><input type="password" id="reset-newpass">
+                <div class="hint">Needs uppercase, lowercase, a number, a special character (@#$%^&+=!), min 8 characters.</div>
+            </div>
+            <div class="field"><label>Confirm password</label><input type="password" id="reset-confirmpass"></div>
+            <button class="btn btn-primary btn-block" id="btn-reset">Update password</button>
+            <p class="auth-foot"><button data-go="login">Back to sign in</button></p>
+        </div>
+    </div>
+
+    <div class="api-base-toggle">
+        <span class="api-dot" id="api-dot"></span>
+        <input type="text" id="api-base-input" value="http://localhost:8080" spellcheck="false">
+        <button class="btn btn-ghost btn-sm" id="btn-check-api">Check</button>
+    </div>
+</div>
+
+<!-- ================= APP SHELL ================= -->
+<div id="app">
+    <button class="btn-icon mobile-menu-btn" id="btn-open-sidebar" style="position:fixed;top:14px;left:16px;z-index:60;">☰</button>
+    <aside class="sidebar" id="sidebar">
+        <div class="brand"><div class="brand-mark">L</div><div class="brand-name">Ledger</div></div>
+        <ul class="nav-list">
+            <li><button class="nav-item" data-page="dashboard"><span class="ic">◆</span> Dashboard</button></li>
+            <li><button class="nav-item" data-page="categories"><span class="ic">▤</span> Categories</button></li>
+            <li><button class="nav-item" data-page="records"><span class="ic">☰</span> Records</button></li>
+            <li><button class="nav-item" data-page="reports"><span class="ic">▲</span> Reports</button></li>
+            <li><button class="nav-item" data-page="budget"><span class="ic">◐</span> Budget</button></li>
+            <li><button class="nav-item" data-page="notifications"><span class="ic">◔</span> Notifications</button></li>
+            <li><button class="nav-item" data-page="settings"><span class="ic">⚙</span> Settings</button></li>
+        </ul>
+        <div class="sidebar-foot">
+            <div class="user-chip">
+                <div class="avatar" id="sidebar-avatar">?</div>
+                <div class="info"><div class="name" id="sidebar-name">—</div><div class="mail" id="sidebar-email">—</div></div>
+            </div>
+            <button class="btn btn-ghost btn-block btn-sm" style="margin-top:10px;" id="btn-logout">Sign out</button>
+        </div>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <div><h2 id="page-title">Dashboard</h2><div class="sub" id="page-sub">Your spending, at a glance</div></div>
+            <div class="topbar-actions">
+                <button class="btn-icon" id="btn-dark-toggle" title="Toggle dark mode">◐</button>
+                <button class="btn btn-primary btn-sm" id="btn-quick-add">+ Add expense</button>
+            </div>
+        </header>
+        <main class="content" id="content"></main>
+    </div>
+
+    <nav class="bottom-nav">
+        <button data-page="dashboard"><span class="ic">◆</span>Home</button>
+        <button data-page="records"><span class="ic">☰</span>Records</button>
+        <button data-page="reports"><span class="ic">▲</span>Reports</button>
+        <button data-page="budget"><span class="ic">◐</span>Budget</button>
+        <button data-page="settings"><span class="ic">⚙</span>Settings</button>
+    </nav>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast-wrap"></div>
+
+<script>
+    /* ==================================================================
+       LEDGER — Financial Companion frontend
+       Talks to the Spring Boot "financialcompanion" API.
+       Token kept in memory only (no browser storage used).
+    ================================================================== */
+    /* ---------------- STATE ---------------- */
+    const state = {
+      apiBase: 'http://localhost:8080',
+      token: null,
+      user: null, // {username, email}
+      categories: [],
+      preferences: null, // {userMode, notificationMode}
+      customModes: [],
+      theme: 'light',
+      page: 'dashboard',
+      pendingSignupEmail: null,
+      pendingResetEmail: null,
+      recordsFilter: { keyword:'', categoryId:'', startDate:'', endDate:'', page:0, size:10, categoryLock:null, dateFromSearch:false },
+      reportsTab: 'weekly', // weekly | monthly | custom
+      reportsView: 'bar', // bar | donut | trend | stats | table
+      reportsSearch: '',
+      reportsCustomRange: { start:'', end:'' },
+      charts: {},
+    };
+
+    /* ---------------- UTIL ---------------- */
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $all = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+    const money = (v) => {
+      const n = Number(v || 0);
+      return '₹' + n.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    };
+    const fmtDate = (d) => {
+      if(!d) return '—';
+      const dt = new Date(d);
+      if(isNaN(dt)) return d;
+      return dt.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+    };
+    const fmtDateTime = (d) => {
+      if(!d) return '—';
+      const dt = new Date(d);
+      if(isNaN(dt)) return d;
+      return dt.toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+    };
+    const toISO = (d) => { // Date -> yyyy-mm-dd
+      return d.toISOString().slice(0,10);
+    };
+    // Parses "4/8/2026" (day/month/year), "04-08-2026", or "2026-08-04" into ISO yyyy-mm-dd. Returns null if not date-like.
+    function parseFlexibleDate(str){
+      str = (str||'').trim();
+      if(!str) return null;
+      let m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if(m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+      m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if(m){
+        const day = String(m[1]).padStart(2,'0');
+        const month = String(m[2]).padStart(2,'0');
+        return `${m[3]}-${month}-${day}`;
+      }
+      return null;
+    }
+    function toast(msg, type='ok'){
+      const wrap = $('#toast-wrap');
+      const el = document.createElement('div');
+      el.className = 'toast ' + (type==='err'?'err':type==='ok'?'ok':'');
+      el.textContent = msg;
+      wrap.appendChild(el);
+      setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; setTimeout(()=>el.remove(),250); }, 3200);
+    }
+    function escapeHtml(s){
+      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function initials(name){
+      if(!name) return '?';
+      return name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    }
+
+    /* ---------------- API ---------------- */
+    async function api(path, {method='GET', body=null, auth=true, params=null} = {}){
+      let url = state.apiBase.replace(/\/$/,'') + path;
+      if(params){
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([k,v]) => { if(v !== null && v !== undefined && v !== '') qs.append(k,v); });
+        const qsStr = qs.toString();
+        if(qsStr) url += (url.includes('?') ? '&' : '?') + qsStr;
+      }
+      const headers = {'Content-Type':'application/json'};
+      if(auth && state.token) headers['Authorization'] = 'Bearer ' + state.token;
+      let res;
+      try{
+        res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+      }catch(e){
+        throw new Error('Could not reach the API at ' + state.apiBase + '. Check the API Base URL and that the server is running (and CORS-enabled).');
+      }
+      if(res.status === 401){
+        if(state.token){ toast('Session expired — please sign in again.', 'err'); doLogout(); }
+        throw new Error('Unauthorized');
+      }
+      if(res.status === 204) return null;
+      let data = null;
+      const text = await res.text();
+      try{ data = text ? JSON.parse(text) : null; }catch(e){ data = text; }
+      if(!res.ok){
+        const msg = (data && (data.message || data.error || data.messege)) || `Request failed (${res.status})`;
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    /* ---------------- ROUTER ---------------- */
+    const PAGE_META = {
+      dashboard:   {title:'Dashboard', sub:'Your spending, at a glance'},
+      categories:  {title:'Categories', sub:'Organise where your money goes'},
+      records:     {title:'Records', sub:'Every expense, searchable'},
+      reports:     {title:'Reports', sub:'Weekly, monthly, and custom breakdowns'},
+      budget:      {title:'Budget', sub:'Set and track your monthly limit'},
+      notifications:{title:'Notifications', sub:'Alerts and summaries'},
+      settings:    {title:'Settings', sub:'Profile, modes, and preferences'},
+    };
+    function goPage(page, opts={}){
+      state.page = page;
+      $all('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+      $all('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+      $('#page-title').textContent = PAGE_META[page].title;
+      $('#page-sub').textContent = PAGE_META[page].sub;
+      $('#sidebar').classList.remove('open');
+      const renderers = {
+        dashboard: renderDashboard, categories: renderCategories, records: () => renderRecords(opts),
+        reports: renderReports, budget: renderBudget, notifications: renderNotifications, settings: renderSettings,
+      };
+      $('#content').innerHTML = '<div class="empty-state"><div class="ic">…</div><p>Loading…</p></div>';
+      renderers[page]();
+    }
+
+    /* ---------------- AUTH SCREEN ---------------- */
+    function showAuthView(name){
+      $all('.auth-view').forEach(v => v.classList.add('hidden'));
+      $('#view-' + name).classList.remove('hidden');
+    }
+    function authMsg(elId, msg, type='error'){
+      const el = $(elId);
+      el.innerHTML = msg ? `<div class="${type==='error'?'auth-error':'auth-success'}">${escapeHtml(msg)}</div>` : '';
+    }
+
+    $all('[data-go]').forEach(btn => btn.addEventListener('click', () => showAuthView(btn.dataset.go)));
+
+    $('#btn-check-api').addEventListener('click', checkApiHealth);
+    $('#api-base-input').addEventListener('change', e => { state.apiBase = e.target.value.trim(); checkApiHealth(); });
+    async function checkApiHealth(){
+      const dot = $('#api-dot');
+      try{
+        await fetch(state.apiBase.replace(/\/$/,'') + '/api/auth/login', {method:'OPTIONS'}).catch(()=>{});
+        // We can't reliably "ping" without an open endpoint; just assume reachable if fetch didn't throw a network error.
+        const r = await fetch(state.apiBase.replace(/\/$/,'') + '/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email:'',password:''})});
+        dot.classList.add('ok');
+      }catch(e){
+        dot.classList.remove('ok');
+      }
+    }
+
+    $('#btn-login').addEventListener('click', async () => {
+      const email = $('#login-email').value.trim();
+      const password = $('#login-password').value;
+      authMsg('#login-msg','');
+      if(!email || !password){ authMsg('#login-msg','Enter your email and password.'); return; }
+      const btn = $('#btn-login'); btn.disabled = true; btn.textContent = 'Signing in…';
+      try{
+        const res = await api('/api/auth/login', {method:'POST', auth:false, body:{email,password}});
+        state.token = res.token;
+        state.user = {username: res.username, email: res.email};
+        await afterLogin();
+      }catch(e){
+        authMsg('#login-msg', e.message);
+      }finally{ btn.disabled=false; btn.textContent='Sign in'; }
+    });
+
+    $('#btn-signup').addEventListener('click', async () => {
+      const username = $('#signup-username').value.trim();
+      const email = $('#signup-email').value.trim();
+      const password = $('#signup-password').value;
+      authMsg('#signup-msg','');
+      if(!username || !email || !password){ authMsg('#signup-msg','Fill in all fields.'); return; }
+      const btn = $('#btn-signup'); btn.disabled=true; btn.textContent='Sending code…';
+      try{
+        await api('/api/auth/signup', {method:'POST', auth:false, body:{username,email,password}});
+        state.pendingSignupEmail = email;
+        $('#verify-email-label').textContent = email;
+        showAuthView('verify');
+      }catch(e){
+        authMsg('#signup-msg', e.message);
+      }finally{ btn.disabled=false; btn.textContent='Send verification code'; }
+    });
+
+    $('#btn-verify').addEventListener('click', async () => {
+      const otp = $('#verify-otp').value.trim();
+      authMsg('#verify-msg','');
+      if(!otp){ authMsg('#verify-msg','Enter the code.'); return; }
+      const btn = $('#btn-verify'); btn.disabled=true; btn.textContent='Verifying…';
+      try{
+        const res = await api('/api/auth/verify-signup', {method:'POST', auth:false, body:{email: state.pendingSignupEmail, otp, purpose:'SIGNUP'}});
+        state.token = res.token;
+        state.user = {username: res.username, email: res.email};
+        await afterLogin();
+      }catch(e){
+        authMsg('#verify-msg', e.message);
+      }finally{ btn.disabled=false; btn.textContent='Verify & continue'; }
+    });
+
+    $('#btn-resend-signup').addEventListener('click', async () => {
+      try{
+        await api('/api/otp/resend', {method:'POST', auth:false, body:{email: state.pendingSignupEmail}, params:{purpose:'SIGNUP'}});
+        toast('Verification code resent.');
+      }catch(e){ toast(e.message,'err'); }
+    });
+
+    $('#btn-forgot').addEventListener('click', async () => {
+      const email = $('#forgot-email').value.trim();
+      authMsg('#forgot-msg','');
+      if(!email){ authMsg('#forgot-msg','Enter your email.'); return; }
+      const btn = $('#btn-forgot'); btn.disabled=true; btn.textContent='Sending…';
+      try{
+        await api('/api/auth/forgot-password', {method:'POST', auth:false, body:{email}});
+        state.pendingResetEmail = email;
+        $('#reset-email-label').textContent = email;
+        showAuthView('reset');
+      }catch(e){
+        authMsg('#forgot-msg', e.message);
+      }finally{ btn.disabled=false; btn.textContent='Send reset code'; }
+    });
+
+    $('#btn-reset').addEventListener('click', async () => {
+      const otp = $('#reset-otp').value.trim();
+      const newPassword = $('#reset-newpass').value;
+      const confirmPassword = $('#reset-confirmpass').value;
+      authMsg('#reset-msg','');
+      if(!otp || !newPassword || !confirmPassword){ authMsg('#reset-msg','Fill in all fields.'); return; }
+      if(newPassword !== confirmPassword){ authMsg('#reset-msg','Passwords do not match.'); return; }
+      const btn = $('#btn-reset'); btn.disabled=true; btn.textContent='Updating…';
+      try{
+        await api('/api/auth/change-password', {method:'POST', auth:false, body:{email: state.pendingResetEmail, otp, newPassword, confirmPassword}});
+        authMsg('#reset-msg','Password updated — you can sign in now.','success');
+        setTimeout(()=>showAuthView('login'), 1200);
+      }catch(e){
+        authMsg('#reset-msg', e.message);
+      }finally{ btn.disabled=false; btn.textContent='Update password'; }
+    });
+
+    /* ---------------- SESSION BOOT ---------------- */
+    async function afterLogin(){
+      $('#auth-screen').style.display = 'none';
+      $('#app').classList.add('active');
+      $('#sidebar-name').textContent = state.user.username;
+      $('#sidebar-email').textContent = state.user.email;
+      $('#sidebar-avatar').textContent = initials(state.user.username);
+      try{ state.categories = await api('/api/categories'); }catch(e){ state.categories = []; }
+      try{ state.preferences = await api('/api/preferences'); }catch(e){ state.preferences = {userMode:'NORMAL', notificationMode:'NORMAL'}; }
+      try{ state.customModes = await api('/api/custom-modes'); }catch(e){ state.customModes = []; }
+      goPage('dashboard');
+    }
+    function doLogout(){
+      state.token = null; state.user = null; state.categories = []; state.preferences = null; state.insightsCache = null;
+      $('#app').classList.remove('active');
+      $('#auth-screen').style.display = 'flex';
+      showAuthView('login');
+    }
+    $('#btn-logout').addEventListener('click', doLogout);
+
+    /* ---------------- NAV WIRING ---------------- */
+    $all('.nav-item, .bottom-nav button').forEach(btn => {
+      btn.addEventListener('click', () => goPage(btn.dataset.page));
+    });
+    $('#btn-open-sidebar').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
+
+    /* ---------------- DARK MODE ---------------- */
+    $('#btn-dark-toggle').addEventListener('click', () => {
+      state.theme = state.theme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', state.theme);
+    });
+
+    /* ---------------- QUICK ADD ---------------- */
+    $('#btn-quick-add').addEventListener('click', () => openExpenseModal());
+
+    /* ================= DASHBOARD ================= */
+    async function renderDashboard(forceInsights=false){
+      const el = $('#content');
+      let summary, budgetStatus, insights, topCats;
+      try{
+        // NOTE: /api/reports/insights has a write side-effect on the backend (it logs a
+        // notification row on every call). To avoid flooding the Notifications page with
+        // duplicates, we only fetch it once per session unless the user explicitly refreshes.
+        const insightsPromise = (state.insightsCache && !forceInsights)
+          ? Promise.resolve(state.insightsCache)
+          : api('/api/reports/insights').catch(()=>[]).then(r => { state.insightsCache = r; return r; });
+        [summary, budgetStatus, insights, topCats] = await Promise.all([
+          api('/api/reports/dashboard'),
+          api('/api/reports/budget-status').catch(()=>null),
+          insightsPromise,
+          api('/api/reports/top-categories').catch(()=>[]),
+        ]);
+      }catch(e){
+        el.innerHTML = errorPanel(e.message, renderDashboard);
+        return;
+      }
+      const momUp = Number(summary.monthOverMonthDifference) > 0;
+      el.innerHTML = `
+        <div class="grid grid-4" style="margin-bottom:20px;">
+          <div class="ledger-stat">
+            <div class="lbl">Current month</div>
+            <div class="val num">${money(summary.currentMonthExpense)}</div>
+            <div class="delta">Last month ${money(summary.previousMonthExpense)}</div>
+            <div class="delta ${momUp?'up':'down'}">${momUp?'▲':'▼'} ${money(Math.abs(summary.monthOverMonthDifference||0))} vs last month</div>
+          </div>
+          <div class="ledger-stat amber">
+            <div class="lbl">Average expense</div>
+            <div class="val num">${money(summary.averageExpense)}</div>
+            <div class="delta">per day this month</div>
+          </div>
+          <div class="ledger-stat amber">
+            <div class="lbl">Daily limit</div>
+            <div class="val num">${money(budgetStatus?.recommendedLimit || 0)}</div>
+            <div class="delta">Based on current budget</div>
+          </div>
+          <div class="ledger-stat">
+            <div class="lbl">This year</div>
+            <div class="val num">${money(summary.thisYearExpense)}</div>
+            <div class="delta">Jan – Dec</div>
+          </div>
+        </div>
+
+        <div class="grid grid-2" style="align-items:start;">
+          <div class="card">
+            <h3>Budget status</h3>
+            <div class="card-sub">This month's limit and how you're tracking</div>
+            ${budgetStatus ? renderBudgetStatusBlock(budgetStatus) : `<div class="empty-state"><div class="ic">◐</div><h4>No budget set yet</h4><p>Set a monthly budget to see how your spending compares.</p><button class="btn btn-primary btn-sm" data-page="budget">Set a budget</button></div>`}
+          </div>
+          <div class="card">
+            <h3>Top categories</h3>
+            <div class="card-sub">This month’s top categories</div>
+            ${topCats && topCats.length ? renderTopCatsList(topCats) : `<div class="empty-state"><div class="ic">▤</div><h4>No expenses yet</h4><p>Add your first expense to see a breakdown.</p></div>`}
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="toolbar" style="margin-bottom:2px;">
+            <div><h3>Insights</h3><div class="card-sub">Quick observations about your spending</div></div>
+            <div style="flex:1"></div>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh-insights" title="Re-checking creates a new notification on the server, so this is manual rather than automatic">↻ Refresh</button>
+          </div>
+          ${insights && insights.length ? insights.map(i => `
+            <div class="notif-item ${sevClass(i.severity)}">
+              <div class="notif-ic">${sevIcon(i.severity)}</div>
+              <div><div class="notif-msg">${escapeHtml(i.message)}</div></div>
+            </div>`).join('') : `<div class="empty-state"><div class="ic">◔</div><p>No insights yet — add a few expenses first.</p></div>`}
+        </div>
+      `;
+      $all('[data-page]', el).forEach(b => b.addEventListener('click', () => goPage(b.dataset.page)));
+      $('#btn-refresh-insights').addEventListener('click', () => renderDashboard(true));
+    }
+    function sevClass(sev){ sev=(sev||'').toUpperCase(); return sev==='CRITICAL'?'crit':sev==='WARNING'?'warn':'info'; }
+    function sevIcon(sev){ sev=(sev||'').toUpperCase(); return sev==='CRITICAL'?'⚠':sev==='WARNING'?'!':'i'; }
+    function renderBudgetStatusBlock(b){
+      const pct = b.monthlyBudget && Number(b.monthlyBudget) > 0 ? Math.min(100, (Number(b.currentSpent||0)/Number(b.monthlyBudget))*100) : 0;
+      const over = Number(b.currentSpent||0) > Number(b.monthlyBudget||0);
+      return `
+        <div style="margin-bottom:10px; display:flex; justify-content:space-between; font-size:13px;">
+          <span class="mono">${money(b.currentSpent)} spent</span><span class="mono" style="color:var(--text-muted)">of ${money(b.monthlyBudget)}</span>
+        </div>
+        <div style="height:8px; background:var(--bg-sunk); border-radius:6px; overflow:hidden; margin-bottom:12px;">
+          <div style="height:100%; width:${pct}%; background:${over?'var(--brick)':'var(--jade)'};"></div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+          <span class="badge ${over?'badge-brick':'badge-jade'}">${escapeHtml(b.status||(over?'Over budget':'On track'))}</span>
+          <span class="badge badge-muted">Remaining ${money(b.remainingBudget)}</span>
+          ${b.recommendedLimit ? `<span class="badge badge-amber">Daily limit ~${money(b.recommendedLimit)}</span>` : ''}
+        </div>
+        ${b.advice ? `<p style="font-size:13px; color:var(--text-muted); line-height:1.5;">${escapeHtml(b.advice)}</p>` : ''}
+      `;
+    }
+    function renderTopCatsList(cats){
+      const total = cats.reduce((s,c)=>s+Number(c.totalAmount||0),0) || 1;
+      return cats.slice(0,6).map(c => {
+        const pct = Math.round((Number(c.totalAmount||0)/total)*100);
+        return `<div style="margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;">
+            <span>${escapeHtml(c.categoryName)}</span><span class="mono">${money(c.totalAmount)}</span>
+          </div>
+          <div style="height:6px; background:var(--bg-sunk); border-radius:6px; overflow:hidden;">
+            <div style="height:100%; width:${pct}%; background:var(--jade);"></div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    function errorPanel(msg, retryFn){
+      return `<div class="empty-state"><div class="ic">⚠</div><h4>Couldn't load this</h4><p>${escapeHtml(msg)}</p>
+        <button class="btn btn-ghost btn-sm" onclick="(${retryFn.name})()">Try again</button></div>`;
+    }
+
+    /* ================= CATEGORIES ================= */
+    async function renderCategories(){
+      const el = $('#content');
+      let highlights = [];
+      try{
+        [state.categories, highlights] = await Promise.all([
+          api('/api/categories'),
+          api('/api/reports/category-highlights').catch(() => [])
+        ]);
+      }catch(e){ el.innerHTML = errorPanel(e.message, renderCategories); return; }
+      el.innerHTML = `
+        <div class="toolbar"><div style="flex:1"></div>
+          <button class="btn btn-primary btn-sm" id="btn-add-category">+ New category</button>
+        </div>
+        ${highlights && highlights.length ? `<div class="grid grid-4" style="margin-bottom:16px;">${renderCategoryHighlights(highlights)}</div>` : ''}
+        ${state.categories.length ? `<div class="cat-grid" id="cat-grid"></div>` :
+          `<div class="empty-state"><div class="ic">▤</div><h4>No categories yet</h4><p>Create categories like Food, Travel or Rent to start organising expenses.</p>
+           <button class="btn btn-primary btn-sm" id="btn-add-category-empty">+ New category</button></div>`}
+      `;
+      $('#btn-add-category')?.addEventListener('click', () => openCategoryModal());
+      $('#btn-add-category-empty')?.addEventListener('click', () => openCategoryModal());
+      const grid = $('#cat-grid');
+      if(grid){
+        grid.innerHTML = state.categories.map(c => `
+          <div class="cat-card" data-id="${c.id}">
+            <div class="top">
+              <div class="cat-ic">${c.type === 'INCOME' ? '↑' : '↓'}</div>
+              <button class="menu-dots" data-menu="${c.id}">⋯</button>
+            </div>
+            <div class="name">${escapeHtml(c.name)}</div>
+            <div class="type">${c.type === 'INCOME' ? 'Income' : 'Expense'}${c.predefined ? ' · Predefined' : ''}</div>
+          </div>
+        `).join('');
+        $all('.cat-card', grid).forEach(card => {
+          card.addEventListener('click', (e) => {
+            if(e.target.closest('[data-menu]')) return;
+            const cat = state.categories.find(c => String(c.id) === card.dataset.id);
+            state.recordsFilter = { keyword:'', categoryId:String(cat.id), startDate:'', endDate:'', page:0, size:10, categoryLock:cat, dateFromSearch:false };
+            goPage('records');
+          });
+        });
+        $all('[data-menu]', grid).forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCatMenu(btn, state.categories.find(c => String(c.id) === btn.dataset.menu));
+          });
+        });
+      }
+    }
+    function renderCategoryHighlights(items){
+      return items.map(item => `
+        <div class="ledger-stat">
+          <div class="lbl">${escapeHtml(item.label)}</div>
+          <div class="val" style="font-size:18px;">${escapeHtml(item.categoryName || '—')}</div>
+          <div class="delta">${money(item.totalAmount || 0)}</div>
+        </div>
+      `).join('');
+    }
+    function openCatMenu(anchor, cat){
+      $all('.cat-inline-menu').forEach(m => m.remove());
+      const menu = document.createElement('div');
+      menu.className = 'cat-inline-menu card';
+      menu.style.cssText = 'position:absolute; z-index:30; padding:6px; width:140px;';
+      const r = anchor.getBoundingClientRect();
+      menu.style.top = (r.bottom + window.scrollY + 4) + 'px';
+      menu.style.left = (r.left + window.scrollX - 90) + 'px';
+      menu.innerHTML = `
+        <button class="nav-item" style="padding:8px 10px;" data-act="edit">Edit</button>
+        <button class="nav-item" style="padding:8px 10px; color:var(--brick);" data-act="del">Delete</button>
+      `;
+      document.body.appendChild(menu);
+      menu.querySelector('[data-act="edit"]').addEventListener('click', () => { menu.remove(); openCategoryModal(cat); });
+      menu.querySelector('[data-act="del"]').addEventListener('click', () => { menu.remove(); confirmDeleteCategory(cat); });
+      setTimeout(() => document.addEventListener('click', function h(ev){ if(!menu.contains(ev.target)){ menu.remove(); document.removeEventListener('click',h);} }), 0);
+    }
+    function confirmDeleteCategory(cat){
+      openModal(`
+        <div class="modal-head"><h3>Delete category</h3><button class="modal-close" data-close>✕</button></div>
+        <div class="modal-body"><p>Delete <strong>${escapeHtml(cat.name)}</strong>? Expenses in this category will keep the old category reference on the server, but you'll no longer be able to add new ones here.</p></div>
+        <div class="modal-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-danger" id="btn-confirm-del-cat">Delete</button></div>
+      `);
+      $('#btn-confirm-del-cat').addEventListener('click', async () => {
+        try{ await api('/api/categories/' + cat.id, {method:'DELETE'}); toast('Category deleted.'); closeModal(); renderCategories(); }
+        catch(e){ toast(e.message,'err'); }
+      });
+    }
+    function openCategoryModal(cat=null){
+      const isEdit = !!cat;
+      openModal(`
+        <div class="modal-head"><h3>${isEdit?'Edit category':'New category'}</h3><button class="modal-close" data-close>✕</button></div>
+        <div class="modal-body">
+          <div class="field"><label>Name</label><input type="text" id="cat-name" value="${isEdit?escapeHtml(cat.name):''}" placeholder="e.g. Groceries"></div>
+          ${!isEdit ? `<div class="field"><label>Type</label>
+            <select id="cat-type"><option value="EXPENSE">Expense</option><option value="INCOME">Income</option></select>
+          </div>` : `<div class="field"><label>Type</label><input type="text" value="${cat.type==='INCOME'?'Income':'Expense'}" disabled></div>`}
+        </div>
+        <div class="modal-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="btn-save-cat">${isEdit?'Save changes':'Create category'}</button></div>
+      `);
+      $('#btn-save-cat').addEventListener('click', async () => {
+        const name = $('#cat-name').value.trim();
+        if(!name){ toast('Name is required.','err'); return; }
+        try{
+          if(isEdit){ await api('/api/categories/' + cat.id, {method:'PUT', body:{name}}); toast('Category updated.'); }
+          else{ const type = $('#cat-type').value; await api('/api/categories', {method:'POST', body:{name, type}}); toast('Category created.'); }
+          closeModal(); renderCategories();
+        }catch(e){ toast(e.message,'err'); }
+      });
+    }
+
+    /* ================= MODAL HELPERS ================= */
+    function openModal(innerHtml){
+      const root = $('#modal-root');
+      root.innerHTML = `<div class="modal-overlay" id="modal-overlay"><div class="modal">${innerHtml}</div></div>`;
+      $all('[data-close]', root).forEach(b => b.addEventListener('click', closeModal));
+      $('#modal-overlay').addEventListener('click', (e) => { if(e.target.id === 'modal-overlay') closeModal(); });
+    }
+    function closeModal(){ $('#modal-root').innerHTML = ''; }
+
+    /* ================= RECORDS ================= */
+    async function renderRecords(){
+      const el = $('#content');
+      const f = state.recordsFilter;
+      el.innerHTML = `
+        <div class="toolbar">
+          ${f.categoryLock ? `<span class="badge badge-jade">Category: ${escapeHtml(f.categoryLock.name)} <button id="clear-cat-lock" style="background:none;border:none;color:inherit;cursor:pointer;margin-left:4px;">✕</button></span>` : ''}
+          <div class="search-box">
+            <span>⌕</span>
+            <input type="text" id="rec-search" placeholder="Search by name (dominos) or date (4/8/2026)" value="${escapeHtml(f.keyword)}">
+          </div>
+          ${!f.categoryLock ? `<select id="rec-cat-filter"><option value="">All categories</option>
+            ${state.categories.map(c=>`<option value="${c.id}" ${String(f.categoryId)===String(c.id)?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}
+          </select>` : ''}
+          <input type="date" id="rec-start" value="${f.startDate}" title="From date">
+          <input type="date" id="rec-end" value="${f.endDate}" title="To date">
+          <button class="btn btn-primary btn-sm" id="btn-add-expense">+ Add expense</button>
+        </div>
+        <div id="records-table-wrap"><div class="empty-state"><p>Loading…</p></div></div>
+      `;
+      $('#clear-cat-lock')?.addEventListener('click', () => { state.recordsFilter = {keyword:'', categoryId:'', startDate:'', endDate:'', page:0, size:10, categoryLock:null, dateFromSearch:false}; renderRecords(); });
+      $('#rec-cat-filter')?.addEventListener('change', (e) => { state.recordsFilter.categoryId = e.target.value; state.recordsFilter.page = 0; loadRecordsTable(); });
+      $('#rec-start').addEventListener('change', (e) => { state.recordsFilter.startDate = e.target.value; state.recordsFilter.dateFromSearch = false; state.recordsFilter.page = 0; loadRecordsTable(); });
+      $('#rec-end').addEventListener('change', (e) => { state.recordsFilter.endDate = e.target.value; state.recordsFilter.dateFromSearch = false; state.recordsFilter.page = 0; loadRecordsTable(); });
+      $('#btn-add-expense').addEventListener('click', () => openExpenseModal(null, loadRecordsTable));
+      let searchTimer;
+      $('#rec-search').addEventListener('input', (e) => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          const v = e.target.value.trim();
+          const asDate = parseFlexibleDate(v);
+          if(asDate){
+            state.recordsFilter.keyword = '';
+            state.recordsFilter.startDate = asDate;
+            state.recordsFilter.endDate = asDate;
+            state.recordsFilter.dateFromSearch = true;
+          } else {
+            state.recordsFilter.keyword = v;
+            // Only clear the date range if WE set it from an earlier date search —
+            // don't touch it if the person set it explicitly via the date pickers.
+            if(state.recordsFilter.dateFromSearch){
+              state.recordsFilter.startDate = '';
+              state.recordsFilter.endDate = '';
+              state.recordsFilter.dateFromSearch = false;
+            }
+          }
+          state.recordsFilter.page = 0;
+          renderRecords();
+        }, 400);
+      });
+      loadRecordsTable();
+    }
+    async function loadRecordsTable(){
+      const wrap = $('#records-table-wrap');
+      if(!wrap) return;
+      const f = state.recordsFilter;
+      const catId = f.categoryLock ? f.categoryLock.id : (f.categoryId || null);
+      // Only send a date range if BOTH ends are set — the backend rejects a request
+      // with just one of startDate/endDate.
+      const hasRange = !!(f.startDate && f.endDate);
+      let page;
+      try{
+        page = await api('/api/expenses', {params:{
+          keyword: f.keyword || null, categoryId: catId, startDate: hasRange ? f.startDate : null, endDate: hasRange ? f.endDate : null,
+          page: f.page, size: f.size, sort: 'expenseDate,desc'
+        }});
+      }catch(e){ wrap.innerHTML = errorPanel(e.message, loadRecordsTable); return; }
+      const items = page.content || [];
+      if(!items.length){
+        wrap.innerHTML = `<div class="empty-state"><div class="ic">☰</div><h4>No records found</h4><p>Try clearing filters or add a new expense.</p></div>`;
+        return;
+      }
+      wrap.innerHTML = `
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Description</th><th style="text-align:right;">Amount</th><th></th></tr></thead>
+          <tbody>${items.map(x => `
+            <tr>
+              <td class="mono">${fmtDate(x.expenseDate)}</td>
+              <td>${escapeHtml(x.title)}</td>
+              <td><span class="badge badge-muted">${escapeHtml(x.categoryName)}</span></td>
+              <td style="color:var(--text-muted); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(x.description||'—')}</td>
+              <td class="mono" style="text-align:right;">${money(x.amount)}</td>
+              <td><div class="row-actions">
+                <button class="btn-icon" data-edit="${x.id}" title="Edit">✎</button>
+                <button class="btn-icon" data-del="${x.id}" title="Delete">🗑</button>
+              </div></td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>
+        <div class="pagination">
+          <span>Page ${(page.number ?? 0)+1} of ${Math.max(page.totalPages||1,1)} · ${page.totalElements ?? items.length} record${(page.totalElements===1)?'':'s'}</span>
+          <div class="pgbtns">
+            <button class="btn btn-ghost btn-sm" id="pg-prev" ${page.first?'disabled':''}>← Prev</button>
+            <button class="btn btn-ghost btn-sm" id="pg-next" ${page.last?'disabled':''}>Next →</button>
+          </div>
+        </div>
+      `;
+      $('#pg-prev')?.addEventListener('click', () => { state.recordsFilter.page = Math.max(0, f.page-1); loadRecordsTable(); });
+      $('#pg-next')?.addEventListener('click', () => { state.recordsFilter.page = f.page+1; loadRecordsTable(); });
+      $all('[data-edit]', wrap).forEach(b => b.addEventListener('click', async () => {
+        try{ const exp = await api('/api/expenses/' + b.dataset.edit); openExpenseModal(exp, loadRecordsTable); }
+        catch(e){ toast(e.message,'err'); }
+      }));
+      $all('[data-del]', wrap).forEach(b => b.addEventListener('click', () => confirmDeleteExpense(b.dataset.del)));
+    }
+    function confirmDeleteExpense(id){
+      openModal(`
+        <div class="modal-head"><h3>Delete expense</h3><button class="modal-close" data-close>✕</button></div>
+        <div class="modal-body"><p>This expense record will be permanently removed. This can't be undone.</p></div>
+        <div class="modal-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-danger" id="btn-confirm-del-exp">Delete</button></div>
+      `);
+      $('#btn-confirm-del-exp').addEventListener('click', async () => {
+        try{ await api('/api/expenses/' + id, {method:'DELETE'}); toast('Expense deleted.'); closeModal();
+          if(state.page === 'records') loadRecordsTable(); else if(state.page==='dashboard') renderDashboard();
+        }catch(e){ toast(e.message,'err'); }
+      });
+    }
+
+    /* ================= EXPENSE MODAL (shared: quick add / records / dashboard) ================= */
+    function openExpenseModal(expense=null, onSaved=null){
+      const isEdit = !!expense;
+      if(!state.categories.length){
+        toast('Create a category first before adding expenses.', 'err');
+        goPage('categories');
+        return;
+      }
+      openModal(`
+        <div class="modal-head"><h3>${isEdit?'Edit expense':'Add expense'}</h3><button class="modal-close" data-close>✕</button></div>
+        <div class="modal-body">
+          <div class="field"><label>Title</label><input type="text" id="exp-title" value="${isEdit?escapeHtml(expense.title):''}" placeholder="e.g. Dominos pizza"></div>
+          <div class="field"><label>Amount</label><input type="number" step="0.01" min="0.01" id="exp-amount" value="${isEdit?expense.amount:''}" placeholder="0.00"></div>
+          <div class="field"><label>Category</label><select id="exp-category">
+            ${state.categories.filter(c=>c.type==='EXPENSE').map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
+          </select></div>
+          <div class="field"><label>Date</label><input type="date" id="exp-date" value="${isEdit?expense.expenseDate:toISO(new Date())}"></div>
+          <div class="field"><label>Description (optional)</label><textarea id="exp-desc" rows="2" style="width:100%; padding:11px 13px; border-radius:8px; border:1px solid var(--line); background:var(--bg-sunk); color:var(--text); resize:vertical;">${isEdit?escapeHtml(expense.description||''):''}</textarea></div>
+        </div>
+        <div class="modal-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="btn-save-exp">${isEdit?'Save changes':'Add expense'}</button></div>
+      `);
+      if(isEdit){
+        const catMatch = state.categories.find(c => c.name === expense.categoryName);
+        if(catMatch) $('#exp-category').value = catMatch.id;
+      }
+      $('#btn-save-exp').addEventListener('click', async () => {
+        const title = $('#exp-title').value.trim();
+        const amount = parseFloat($('#exp-amount').value);
+        const categoryId = $('#exp-category').value;
+        const expenseDate = $('#exp-date').value;
+        const description = $('#exp-desc').value.trim();
+        if(!title || !amount || amount <= 0 || !categoryId || !expenseDate){ toast('Fill in title, amount, category and date.', 'err'); return; }
+        const body = { title, amount, description, expenseDate, categoryId: Number(categoryId) };
+        try{
+          if(isEdit){ await api('/api/expenses/' + expense.id, {method:'PUT', body}); toast('Expense updated.'); }
+          else{ await api('/api/expenses', {method:'POST', body}); toast('Expense added.'); }
+          closeModal();
+          if(onSaved) onSaved(); else if(state.page==='dashboard') renderDashboard();
+        }catch(e){ toast(e.message,'err'); }
+      });
+    }
+
+    /* ================= REPORTS ================= */
+    const CHART_COLORS = ['#1f7a5c','#c8912f','#b34a30','#3f6b8f','#7a5c9e','#5c8a2f','#9e5c7a','#2f8a8a'];
+    function destroyChart(id){ if(state.charts[id]){ state.charts[id].destroy(); delete state.charts[id]; } }
+    function mkChart(id, config){
+      destroyChart(id);
+      const ctx = document.getElementById(id);
+      if(!ctx) return;
+      state.charts[id] = new Chart(ctx, config);
+    }
+    function chartTextColor(){ return getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#1b2027'; }
+    function chartGridColor(){ return getComputedStyle(document.documentElement).getPropertyValue('--line').trim() || '#ddd'; }
+
+    function renderReports(){
+      const el = $('#content');
+      el.innerHTML = `
+        <div class="toolbar" style="justify-content:space-between;">
+          <div class="tabs" id="report-tabs">
+            <button class="tab-btn" data-tab="weekly">Weekly</button>
+            <button class="tab-btn" data-tab="monthly">Monthly</button>
+            <button class="tab-btn" data-tab="custom">Custom range</button>
+          </div>
+          <div class="search-box" style="max-width:280px;">
+            <span>⌕</span>
+            <input type="text" id="rep-search" placeholder="Search date (4/8/2026) or name" value="${escapeHtml(state.reportsSearch)}">
+          </div>
+        </div>
+        <div id="custom-range-row" class="toolbar hidden">
+          <input type="date" id="rep-start"><span style="color:var(--text-muted); font-size:13px;">to</span><input type="date" id="rep-end">
+          <button class="btn btn-primary btn-sm" id="btn-apply-range">Apply range</button>
+        </div>
+        <div class="toolbar">
+          <div class="view-switch" id="view-switch">
+            <button class="view-chip" data-view="bar">📊 Bar graph</button>
+            <button class="view-chip" data-view="donut">🍩 Donut chart</button>
+            <button class="view-chip" data-view="trend">📈 Trend line</button>
+            <button class="view-chip" data-view="stats">🧮 Stats cards</button>
+            <button class="view-chip" data-view="table">📋 Table view</button>
+          </div>
+        </div>
+        <div id="reports-body"><div class="empty-state"><p>Loading…</p></div></div>
+      `;
+      $all('#report-tabs .tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === state.reportsTab);
+        b.addEventListener('click', () => { state.reportsTab = b.dataset.tab; renderReports(); });
+      });
+      $('#custom-range-row').classList.toggle('hidden', state.reportsTab !== 'custom');
+      if(state.reportsTab === 'custom'){
+        $('#rep-start').value = state.reportsCustomRange.start;
+        $('#rep-end').value = state.reportsCustomRange.end;
+        $('#btn-apply-range').addEventListener('click', () => {
+          state.reportsCustomRange.start = $('#rep-start').value;
+          state.reportsCustomRange.end = $('#rep-end').value;
+          loadReportsBody();
+        });
+      }
+      $all('#view-switch .view-chip').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === state.reportsView);
+        b.addEventListener('click', () => { state.reportsView = b.dataset.view; loadReportsBody(); });
+      });
+      let t; $('#rep-search').addEventListener('input', (e) => {
+        clearTimeout(t); t = setTimeout(() => { state.reportsSearch = e.target.value.trim(); loadReportsBody(); }, 400);
+      });
+      loadReportsBody();
+    }
+
+    async function loadReportsBody(){
+      const body = $('#reports-body');
+      if(!body) return;
+      body.innerHTML = `<div class="empty-state"><p>Crunching numbers…</p></div>`;
+      const tab = state.reportsTab;
+      try{
+        if(tab === 'weekly') await renderWeeklyReport(body);
+        else if(tab === 'monthly') await renderMonthlyReport(body);
+        else await renderCustomReport(body);
+      }catch(e){
+        body.innerHTML = errorPanel(e.message, loadReportsBody);
+      }
+    }
+
+    async function renderWeeklyReport(body){
+      const view = state.reportsView;
+      if(view === 'bar' || view === 'trend'){
+        const trend = await api('/api/reports/weekly-trend');
+        body.innerHTML = `<div class="card"><h3>Weekly spending trend</h3><div class="card-sub">Total expense by week</div><div class="chart-box"><canvas id="chart-weekly"></canvas></div></div>`;
+        mkChart('chart-weekly', {
+          type: view === 'bar' ? 'bar' : 'line',
+          data: { labels: trend.map(t=>t.weekLabel), datasets: [{ label:'Weekly expense', data: trend.map(t=>Number(t.totalExpense||0)),
+            backgroundColor: view==='bar' ? CHART_COLORS[0] : 'rgba(31,122,92,.15)', borderColor: CHART_COLORS[0], borderWidth:2, tension:.35, fill: view!=='bar' }] },
+          options: chartOpts()
+        });
+      } else if(view === 'donut'){
+        const cats = await api('/api/reports/top-categories');
+        renderDonut(body, cats, 'All-time category breakdown');
+      } else if(view === 'stats'){
+        const [health, patterns] = await Promise.all([api('/api/reports/financialHealth'), api('/api/reports/spendingPatterns')]);
+        body.innerHTML = statsGrid(health, patterns);
+      } else {
+        await renderTableView(body, null, null);
+      }
+    }
+
+    async function renderMonthlyReport(body){
+      const view = state.reportsView;
+      if(view === 'bar'){
+        const cmp = await api('/api/reports/monthlyComparison');
+        body.innerHTML = `<div class="card"><h3>This month vs last month</h3><div class="card-sub">${escapeHtml(cmp.trend||'')} · ${cmp.percentageChange!=null?Number(cmp.percentageChange).toFixed(1)+'% change':''}</div><div class="chart-box"><canvas id="chart-monthly-bar"></canvas></div></div>`;
+        mkChart('chart-monthly-bar', { type:'bar', data:{ labels:['Previous month','Current month'], datasets:[{ data:[Number(cmp.previousMonthExpense||0), Number(cmp.currentMonthExpense||0)], backgroundColor:[CHART_COLORS[3], CHART_COLORS[0]] }] }, options: chartOpts() });
+      } else if(view === 'trend'){
+        const growth = await api('/api/reports/categoryGrowth');
+        body.innerHTML = `<div class="card"><h3>Category growth — current vs previous month</h3><div class="chart-box"><canvas id="chart-monthly-trend"></canvas></div></div>`;
+        mkChart('chart-monthly-trend', { type:'line', data:{ labels: growth.map(g=>g.categoryName), datasets:[
+          { label:'Previous month', data: growth.map(g=>Number(g.previousMonthAmount||0)), borderColor: CHART_COLORS[3], backgroundColor:'transparent', tension:.3 },
+          { label:'Current month', data: growth.map(g=>Number(g.currentMonthAmount||0)), borderColor: CHART_COLORS[0], backgroundColor:'transparent', tension:.3 },
+        ]}, options: chartOpts() });
+      } else if(view === 'donut'){
+        const cats = await api('/api/reports/top-categories');
+        renderDonut(body, cats, 'This period category breakdown');
+      } else if(view === 'stats'){
+        const [health, patterns, cmp] = await Promise.all([api('/api/reports/financialHealth'), api('/api/reports/spendingPatterns'), api('/api/reports/monthlyComparison')]);
+        body.innerHTML = statsGrid(health, patterns) + `
+          <div class="card" style="margin-top:16px;"><h3>Month over month</h3>
+            <div class="grid grid-3">
+              <div class="ledger-stat"><div class="lbl">Previous month</div><div class="val num">${money(cmp.previousMonthExpense)}</div></div>
+              <div class="ledger-stat"><div class="lbl">Current month</div><div class="val num">${money(cmp.currentMonthExpense)}</div></div>
+              <div class="ledger-stat ${Number(cmp.percentageChange)>0?'brick':'amber'}"><div class="lbl">Change</div><div class="val num">${Number(cmp.percentageChange||0).toFixed(1)}%</div><div class="delta">${escapeHtml(cmp.trend||'')}</div></div>
+            </div>
+          </div>`;
+      } else {
+        const growth = await api('/api/reports/categoryGrowth');
+        body.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3>Category growth</h3>
+          <div class="table-wrap"><table><thead><tr><th>Category</th><th>Current month</th><th>Previous month</th><th>Growth</th><th>Trend</th></tr></thead>
+          <tbody>${growth.map(g=>`<tr><td>${escapeHtml(g.categoryName)}</td><td class="mono">${money(g.currentMonthAmount)}</td><td class="mono">${money(g.previousMonthAmount)}</td>
+          <td class="mono">${Number(g.growthPercentage||0).toFixed(1)}%</td><td><span class="badge ${g.trend==='INCREASING'?'badge-brick':g.trend==='DECREASING'?'badge-jade':'badge-muted'}">${escapeHtml(g.trend||'—')}</span></td></tr>`).join('')}</tbody>
+          </table></div></div><div id="reports-table-inner"></div>`;
+        await renderTableView($('#reports-table-inner'), null, null, true);
+      }
+    }
+
+    async function renderCustomReport(body){
+      const {start, end} = state.reportsCustomRange;
+      if(!start || !end){
+        body.innerHTML = `<div class="empty-state"><div class="ic">▲</div><h4>Pick a date range</h4><p>Choose a start and end date above, then click Apply range.</p></div>`;
+        return;
+      }
+      const expenses = await fetchAllExpensesInRange(start, end);
+      const filtered = filterBySearch(expenses, state.reportsSearch);
+      const view = state.reportsView;
+      if(view === 'bar' || view === 'trend'){
+        const byDay = {};
+        filtered.forEach(x => { byDay[x.expenseDate] = (byDay[x.expenseDate]||0) + Number(x.amount||0); });
+        const days = Object.keys(byDay).sort();
+        body.innerHTML = `<div class="card"><h3>Daily spending — ${fmtDate(start)} to ${fmtDate(end)}</h3><div class="chart-box"><canvas id="chart-custom"></canvas></div></div>`;
+        mkChart('chart-custom', { type: view==='bar'?'bar':'line', data:{ labels: days.map(d=>fmtDate(d)), datasets:[{ label:'Daily expense', data: days.map(d=>byDay[d]),
+          backgroundColor: view==='bar'?CHART_COLORS[0]:'rgba(31,122,92,.15)', borderColor:CHART_COLORS[0], borderWidth:2, tension:.35, fill:view!=='bar' }] }, options: chartOpts() });
+      } else if(view === 'donut'){
+        const byCat = {};
+        filtered.forEach(x => { byCat[x.categoryName] = (byCat[x.categoryName]||0) + Number(x.amount||0); });
+        const cats = Object.entries(byCat).map(([categoryName,totalAmount]) => ({categoryName, totalAmount}));
+        renderDonut(body, cats, `Category breakdown — ${fmtDate(start)} to ${fmtDate(end)}`);
+      } else if(view === 'stats'){
+        const total = filtered.reduce((s,x)=>s+Number(x.amount||0),0);
+        const days = Math.max(1, (new Date(end) - new Date(start)) / 86400000 + 1);
+        const byCat = {}; filtered.forEach(x => { byCat[x.categoryName] = (byCat[x.categoryName]||0) + Number(x.amount||0); });
+        const topCat = Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
+        const topExp = filtered.slice().sort((a,b)=>Number(b.amount)-Number(a.amount))[0];
+        body.innerHTML = `<div class="grid grid-4">
+          <div class="ledger-stat"><div class="lbl">Total spent</div><div class="val num">${money(total)}</div><div class="delta">${filtered.length} transactions</div></div>
+          <div class="ledger-stat amber"><div class="lbl">Average per day</div><div class="val num">${money(total/days)}</div></div>
+          <div class="ledger-stat"><div class="lbl">Top category</div><div class="val" style="font-size:18px;">${topCat?escapeHtml(topCat[0]):'—'}</div><div class="delta">${topCat?money(topCat[1]):''}</div></div>
+          <div class="ledger-stat brick"><div class="lbl">Highest single expense</div><div class="val num">${topExp?money(topExp.amount):'—'}</div><div class="delta">${topExp?escapeHtml(topExp.title):''}</div></div>
+        </div>`;
+      } else {
+        body.innerHTML = renderExpenseTableHtml(filtered);
+      }
+    }
+    async function fetchAllExpensesInRange(start, end){
+      let page = 0; const all = []; let totalPages = 1;
+      do{
+        const res = await api('/api/expenses', {params:{startDate:start, endDate:end, page, size:100, sort:'expenseDate,desc'}});
+        all.push(...(res.content||[]));
+        totalPages = res.totalPages || 1; page++;
+      }while(page < totalPages && page < 20);
+      return all;
+    }
+    function filterBySearch(expenses, search){
+      if(!search) return expenses;
+      const asDate = parseFlexibleDate(search);
+      if(asDate) return expenses.filter(x => x.expenseDate === asDate);
+      const q = search.toLowerCase();
+      return expenses.filter(x => (x.title||'').toLowerCase().includes(q) || (x.description||'').toLowerCase().includes(q));
+    }
+    function renderExpenseTableHtml(items){
+      if(!items.length) return `<div class="empty-state"><div class="ic">📋</div><h4>No matching records</h4><p>Try a different search term or range.</p></div>`;
+      return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Title</th><th>Category</th><th style="text-align:right;">Amount</th></tr></thead>
+        <tbody>${items.map(x=>`<tr><td class="mono">${fmtDate(x.expenseDate)}</td><td>${escapeHtml(x.title)}</td><td><span class="badge badge-muted">${escapeHtml(x.categoryName)}</span></td><td class="mono" style="text-align:right;">${money(x.amount)}</td></tr>`).join('')}</tbody>
+      </table></div>`;
+    }
+    async function renderTableView(container, _a, _b, append=false){
+      const params = { keyword: state.reportsSearch && !parseFlexibleDate(state.reportsSearch) ? state.reportsSearch : null,
+        startDate: parseFlexibleDate(state.reportsSearch) || null, endDate: parseFlexibleDate(state.reportsSearch) || null,
+        page:0, size:15, sort:'expenseDate,desc' };
+      const res = await api('/api/expenses', {params});
+      const html = `<div class="card"><h3>Recent matching records</h3><div class="card-sub">Showing up to 15 most recent</div>${renderExpenseTableHtml(res.content||[])}</div>`;
+      if(append) container.innerHTML = html; else container.innerHTML = html;
+    }
+    function renderDonut(body, cats, label){
+      if(!cats || !cats.length){ body.innerHTML = `<div class="empty-state"><div class="ic">🍩</div><h4>Nothing to chart yet</h4><p>Add some expenses first.</p></div>`; return; }
+      body.innerHTML = `<div class="card"><h3>${escapeHtml(label)}</h3><div class="chart-box"><canvas id="chart-donut"></canvas></div></div>`;
+      mkChart('chart-donut', { type:'doughnut', data:{ labels: cats.map(c=>c.categoryName), datasets:[{ data: cats.map(c=>Number(c.totalAmount||0)), backgroundColor: CHART_COLORS, borderWidth:2, borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card') }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:chartTextColor() } } } } });
+    }
+    function statsGrid(health, patterns){
+      return `<div class="grid grid-4">
+        <div class="ledger-stat"><div class="lbl">Total spent</div><div class="val num">${money(health.totalSpent)}</div></div>
+        <div class="ledger-stat amber"><div class="lbl">Budget usage</div><div class="val num">${Number(health.budgetUsagePercentage||0).toFixed(0)}%</div><div class="delta">${escapeHtml(health.financialStatus||'')}</div></div>
+        <div class="ledger-stat"><div class="lbl">Remaining budget</div><div class="val num">${money(health.remainingBudget)}</div></div>
+        <div class="ledger-stat brick"><div class="lbl">Highest single expense</div><div class="val num">${money(patterns.highestSingleExpense)}</div><div class="delta">${fmtDate(patterns.highestExpenseDate)}</div></div>
+        <div class="ledger-stat"><div class="lbl">All-time top category</div><div class="val" style="font-size:17px;">${escapeHtml(patterns.allTimeHighestSpendingCategory||'—')}</div><div class="delta">${money(patterns.allTimeHighestSpendingAmount)}</div></div>
+        <div class="ledger-stat"><div class="lbl">This month's top category</div><div class="val" style="font-size:17px;">${escapeHtml(patterns.currentMonthHighestCategory||'—')}</div><div class="delta">${money(patterns.currentMonthHighestCategoryAmount)}</div></div>
+        <div class="ledger-stat amber"><div class="lbl">Average daily spend</div><div class="val num">${money(patterns.averageDailyExpenses)}</div></div>
+      </div>`;
+    }
+    function chartOpts(){
+      return { responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ color: chartTextColor() } } },
+        scales:{ x:{ ticks:{ color: chartTextColor() }, grid:{ color: chartGridColor() } }, y:{ ticks:{ color: chartTextColor() }, grid:{ color: chartGridColor() } } } };
+    }
+
+    /* ================= BUDGET ================= */
+    const budgetSel = { month: new Date().getMonth()+1, year: new Date().getFullYear() };
+    const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    async function renderBudget(){
+      const el = $('#content');
+      const now = new Date();
+      const isPast = (budgetSel.year < now.getFullYear()) || (budgetSel.year === now.getFullYear() && budgetSel.month < (now.getMonth()+1));
+      el.innerHTML = `
+        <div class="toolbar">
+          <select id="budget-month">${MONTH_NAMES.map((m,i)=>`<option value="${i+1}" ${budgetSel.month===i+1?'selected':''}>${m}</option>`).join('')}</select>
+          <select id="budget-year">${[budgetSel.year-1,budgetSel.year,budgetSel.year+1].map(y=>`<option value="${y}" ${budgetSel.year===y?'selected':''}>${y}</option>`).join('')}</select>
+          ${isPast ? `<span class="badge badge-muted">Past month — read only</span>` : ''}
+        </div>
+        <div class="grid grid-2" style="align-items:start;">
+          <div class="card" id="budget-view-card"><h3>Budget for this period</h3><div class="card-sub">Loading…</div></div>
+          <div class="card">
+            <h3>Set / update budget</h3>
+            <div class="card-sub">Applies to the selected month and year</div>
+            ${isPast ? `<div class="empty-state" style="padding:24px 10px;"><div class="ic">◐</div><p>Past months are locked so old records stay accurate — you can only set or update the budget for the current month onward.</p></div>` : `
+            <div class="field"><label>Monthly budget amount</label><input type="number" min="0.1" step="0.01" id="budget-amount" placeholder="e.g. 25000"></div>
+            <button class="btn btn-primary" id="btn-save-budget">Save budget</button>`}
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;" id="budget-status-card"><h3>Latest budget on file</h3><div class="card-sub">Loading…</div></div>
+      `;
+      $('#budget-month').addEventListener('change', e => { budgetSel.month = Number(e.target.value); renderBudget(); });
+      $('#budget-year').addEventListener('change', e => { budgetSel.year = Number(e.target.value); renderBudget(); });
+      $('#btn-save-budget')?.addEventListener('click', async () => {
+        const amt = parseFloat($('#budget-amount').value);
+        if(!amt || amt <= 0){ toast('Enter a valid amount.','err'); return; }
+        try{
+          await api('/api/budget', {method:'POST', body:{ month: budgetSel.month, year: budgetSel.year, budgetAmount: amt }});
+          toast('Budget saved.'); loadBudgetView();
+        }catch(e){ toast(e.message,'err'); }
+      });
+      loadBudgetView();
+      loadBudgetStatus();
+    }
+    async function loadBudgetView(){
+      const card = $('#budget-view-card');
+      try{
+        const b = await api('/api/budget', {params:{month:budgetSel.month, year:budgetSel.year}});
+        card.innerHTML = `<h3>Budget for ${MONTH_NAMES[budgetSel.month-1]} ${budgetSel.year}</h3>
+          <div class="ledger-stat" style="margin-top:10px;"><div class="lbl">Amount</div><div class="val num">${money(b.budgetAmount)}</div>
+          <div class="delta">Last updated ${fmtDateTime(b.updatedAt)}</div></div>`;
+        $('#budget-amount') && ($('#budget-amount').value = b.budgetAmount);
+      }catch(e){
+        card.innerHTML = `<h3>Budget for ${MONTH_NAMES[budgetSel.month-1]} ${budgetSel.year}</h3><div class="empty-state"><div class="ic">◐</div><p>No budget set for this period yet.</p></div>`;
+      }
+    }
+    async function loadBudgetStatus(){
+      const card = $('#budget-status-card');
+      try{
+        const s = await api('/api/budget/status');
+        card.innerHTML = s.budgetExist ? `<h3>Latest budget on file</h3>
+          <div class="grid grid-3">
+            <div class="ledger-stat"><div class="lbl">Amount</div><div class="val num">${money(s.lastBudgetAmount)}</div></div>
+            <div class="ledger-stat"><div class="lbl">Month</div><div class="val" style="font-size:18px;">${MONTH_NAMES[s.lastBudgetMonth-1]}</div></div>
+            <div class="ledger-stat"><div class="lbl">Year</div><div class="val" style="font-size:18px;">${s.lastBudgetYear}</div></div>
+          </div>` : `<h3>Latest budget on file</h3><div class="empty-state"><p>No budgets created yet.</p></div>`;
+      }catch(e){ card.innerHTML = `<h3>Latest budget on file</h3><div class="empty-state"><p>Couldn't load this.</p></div>`; }
+    }
+
+    /* ================= NOTIFICATIONS ================= */
+    async function renderNotifications(){
+      const el = $('#content');
+      let list, daily, monthly;
+      try{
+        [list, daily, monthly] = await Promise.all([
+          api('/api/notifications').catch(()=>[]),
+          api('/api/notifications/daily-summary').catch(()=>null),
+          api('/api/notifications/monthly-summary').catch(()=>null),
+        ]);
+      }catch(e){ el.innerHTML = errorPanel(e.message, renderNotifications); return; }
+      state.notificationsShowAll = state.notificationsShowAll || false;
+      const todayStr = toISO(new Date());
+      const todaysList = (list||[]).filter(n => n.sentAt && n.sentAt.slice(0,10) === todayStr);
+      const statusBadgeClass = (s) => (s==='CRITICAL' ? 'badge-brick' : s==='WARNING' ? 'badge-amber' : s==='BUDGET_NOT_SET' ? 'badge-muted' : 'badge-jade');
+      el.innerHTML = `
+        <div class="grid grid-2" style="margin-bottom:16px; align-items:start;">
+          <div class="card"><h3>Today</h3><div class="card-sub">${daily?fmtDate(daily.summaryDate):''}</div>
+            ${daily ? `<div class="ledger-stat"><div class="lbl">Spent today</div><div class="val num">${money(daily.todaySpent)}</div>
+              <div class="delta">${daily.expenseCount} transaction${daily.expenseCount===1?'':'s'} · top: ${escapeHtml(daily.todayTopCategory||'—')}</div></div>
+              <p style="font-size:12.5px; color:var(--text-muted); margin-top:10px;">Recommended daily limit: <span class="mono">${money(daily.recommendedDailyLimit)}</span></p>`
+              : `<div class="empty-state"><p>No activity today yet.</p></div>`}
+          </div>
+          <div class="card"><h3>This month</h3>
+            ${monthly ? `<div class="ledger-stat"><div class="lbl">Spent</div><div class="val num">${money(monthly.totalSpent)}</div>
+              <div class="delta">Remaining ${money(monthly.remainingBudget)}</div></div>
+              <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+                <span class="badge ${statusBadgeClass(monthly.budgetStatus)}">${escapeHtml(monthly.budgetStatus||'')}</span>
+                <span class="badge badge-muted">Top category: ${escapeHtml(monthly.topCategory||'—')}</span>
+              </div>` : `<div class="empty-state"><p>No summary available.</p></div>`}
+          </div>
+        </div>
+        <div class="card">
+          <div class="toolbar" style="margin-bottom:2px;">
+            <div><h3>${state.notificationsShowAll ? 'All notifications' : "Today's notifications"}</h3>
+              <div class="card-sub">${state.notificationsShowAll ? 'Every notification on record' : fmtDate(todayStr) + ' only'}</div></div>
+            <div style="flex:1"></div>
+            <button class="btn btn-ghost btn-sm" id="btn-toggle-notif-scope">${state.notificationsShowAll ? 'Show today only' : 'Show all'}</button>
+          </div>
+          ${(() => { const shown = state.notificationsShowAll ? list : todaysList;
+            return shown && shown.length ? shown.map(n => `
+            <div class="notif-item ${sevClass(n.severity)}">
+              <div class="notif-ic">${sevIcon(n.severity)}</div>
+              <div><div class="notif-msg">${escapeHtml(n.message)}</div><div class="notif-time">${fmtDateTime(n.sentAt)}</div></div>
+            </div>`).join('') : `<div class="empty-state"><div class="ic">◔</div><h4>No notifications ${state.notificationsShowAll?'yet':'today'}</h4><p>Visit Reports to generate fresh insights — they'll show up here.</p></div>`; })()}
+        </div>
+      `;
+      $('#btn-toggle-notif-scope').addEventListener('click', () => { state.notificationsShowAll = !state.notificationsShowAll; renderNotifications(); });
+    }
+
+    /* ================= SETTINGS ================= */
+    async function renderSettings(){
+      const el = $('#content');
+      let profile;
+      try{ profile = await api('/api/users/me'); }catch(e){ profile = state.user; }
+      const prefs = state.preferences || {userMode:'NORMAL', notificationMode:'NORMAL'};
+      el.innerHTML = `
+        <div class="grid grid-2" style="align-items:start;">
+          <div class="card">
+            <h3>Profile</h3><div class="card-sub">Your account details</div>
+            <div class="opt-row"><div><div class="opt-label">Username</div></div><div class="mono">${escapeHtml(profile.username)}</div></div>
+            <div class="opt-row"><div><div class="opt-label">Email</div></div><div class="mono">${escapeHtml(profile.email)}</div></div>
+            <div class="opt-row"><div><div class="opt-label">Appearance</div><div class="opt-desc">Switch between light and dark</div></div>
+              <label class="switch"><input type="checkbox" id="toggle-dark" ${state.theme==='dark'?'checked':''}><span class="slider"></span></label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Preferences</h3><div class="card-sub">Mode and notification behaviour</div>
+            <div class="field"><label>App mode</label>
+              <select id="pref-mode">
+                <option value="NORMAL" ${prefs.userMode==='NORMAL'?'selected':''}>Default</option>
+                <option value="TRIP" ${prefs.userMode==='TRIP'?'selected':''}>Trip</option>
+                <option value="MEDICAL" ${prefs.userMode==='MEDICAL'?'selected':''}>Medical</option>
+                <option value="CUSTOM" ${prefs.userMode==='CUSTOM'?'selected':''}>Custom mode</option>
+              </select>
+              <div class="hint">Choose "Default" for everyday tracking, or "Custom mode" to use one of your own saved modes below.</div>
+            </div>
+            <div class="opt-row"><div><div class="opt-label">Notifications</div><div class="opt-desc">Silent mutes alerts, Normal shows them</div></div>
+              <label class="switch"><input type="checkbox" id="toggle-notif" ${prefs.notificationMode==='NORMAL'?'checked':''}><span class="slider"></span></label>
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-top:14px;" id="btn-save-prefs">Save preferences</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="toolbar" style="margin-bottom:6px;"><div><h3>Custom modes</h3><div class="card-sub">Saved notification presets you can switch on from "App mode" above</div></div>
+            <div style="flex:1"></div><button class="btn btn-primary btn-sm" id="btn-add-mode">+ New custom mode</button></div>
+          <div id="custom-modes-list"></div>
+        </div>
+      `;
+      $('#toggle-dark').addEventListener('change', (e) => {
+        state.theme = e.target.checked ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', state.theme);
+      });
+      $('#btn-save-prefs').addEventListener('click', async () => {
+        const userMode = $('#pref-mode').value;
+        const notificationMode = $('#toggle-notif').checked ? 'NORMAL' : 'SILENT';
+        try{
+          state.preferences = await api('/api/preferences', {method:'PUT', body:{userMode, notificationMode}});
+          toast('Preferences saved.');
+        }catch(e){ toast(e.message,'err'); }
+      });
+      $('#btn-add-mode').addEventListener('click', () => openCustomModeModal());
+      renderCustomModesList();
+    }
+    async function renderCustomModesList(){
+      const wrap = $('#custom-modes-list');
+      let modes, active;
+      try{
+        modes = await api('/api/custom-modes');
+        active = await api('/api/custom-modes/active').catch(()=>null);
+      }catch(e){ wrap.innerHTML = errorPanel(e.message, renderCustomModesList); return; }
+      state.customModes = modes;
+      if(!modes.length){ wrap.innerHTML = `<div class="empty-state"><div class="ic">⚙</div><p>No custom modes yet. Create one for situations like travel or a strict savings sprint.</p></div>`; return; }
+      wrap.innerHTML = modes.map(m => `
+        <div class="opt-row">
+          <div><div class="opt-label">${escapeHtml(m.modeName)} ${active && active.modeId===m.id ? '<span class="badge badge-jade">Active</span>' : ''}</div>
+            <div class="opt-desc">Notifications: ${m.notificationMode === 'NORMAL' ? 'Normal' : 'Silent'}</div></div>
+          <div class="row-actions">
+            ${!(active && active.modeId===m.id) ? `<button class="btn btn-ghost btn-sm" data-activate="${m.id}">Activate</button>` : ''}
+            <button class="btn-icon" data-edit-mode="${m.id}" title="Edit">✎</button>
+            <button class="btn-icon" data-del-mode="${m.id}" title="Delete">🗑</button>
+          </div>
+        </div>
+      `).join('');
+      $all('[data-activate]', wrap).forEach(b => b.addEventListener('click', async () => {
+        try{ await api(`/api/custom-modes/${b.dataset.activate}/activate`, {method:'PUT'}); toast('Custom mode activated.'); renderCustomModesList(); }
+        catch(e){ toast(e.message,'err'); }
+      }));
+      $all('[data-edit-mode]', wrap).forEach(b => b.addEventListener('click', () => openCustomModeModal(modes.find(m=>String(m.id)===b.dataset.editMode))));
+      $all('[data-del-mode]', wrap).forEach(b => b.addEventListener('click', async () => {
+        try{ await api('/api/custom-modes/' + b.dataset.delMode, {method:'DELETE'}); toast('Custom mode deleted.'); renderCustomModesList(); }
+        catch(e){ toast(e.message,'err'); }
+      }));
+    }
+    function openCustomModeModal(mode=null){
+      const isEdit = !!mode;
+      openModal(`
+        <div class="modal-head"><h3>${isEdit?'Edit custom mode':'New custom mode'}</h3><button class="modal-close" data-close>✕</button></div>
+        <div class="modal-body">
+          <div class="field"><label>Mode name</label><input type="text" id="mode-name" value="${isEdit?escapeHtml(mode.modeName):''}" placeholder="e.g. Weekend trip"></div>
+          <div class="field"><label>Notification style</label><select id="mode-notif">
+            <option value="NORMAL" ${isEdit && mode.notificationMode==='NORMAL'?'selected':''}>Normal</option>
+            <option value="SILENT" ${isEdit && mode.notificationMode==='SILENT'?'selected':''}>Silent</option>
+          </select></div>
+        </div>
+        <div class="modal-foot"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="btn-save-mode">${isEdit?'Save changes':'Create mode'}</button></div>
+      `);
+      $('#btn-save-mode').addEventListener('click', async () => {
+        const modeName = $('#mode-name').value.trim();
+        const notificationMode = $('#mode-notif').value;
+        if(!modeName){ toast('Name is required.','err'); return; }
+        try{
+          if(isEdit) await api('/api/custom-modes/' + mode.id, {method:'PUT', body:{modeName, notificationMode}});
+          else await api('/api/custom-modes', {method:'POST', body:{modeName, notificationMode}});
+          toast('Custom mode saved.'); closeModal(); renderCustomModesList();
+        }catch(e){ toast(e.message,'err'); }
+      });
+    }
+
+    /* ================= BOOT ================= */
+    $('#api-base-input').value = state.apiBase;
+    checkApiHealth();
+
+</script>
+</body>
+</html>
+

@@ -45,7 +45,7 @@ public class NotificationScheduler {
                 mode
         );
 
-        if(mode != NotificationMode.SILENT){
+        if(mode != NotificationMode.NORMAL){
 
             log.info(
                     "Skipping userId = {} because mode = {}",
@@ -57,7 +57,6 @@ public class NotificationScheduler {
         }
 
         notificationService.generateAndStoreDailySummary(user);
-        notificationService.sendFinancialSummary(user);
 
         log.info(
                 "Daily summary checked completed for userId = {}",
@@ -91,19 +90,18 @@ public class NotificationScheduler {
                     mode
             );
 
-            if (mode != NotificationMode.SILENT) {
+        if (mode != NotificationMode.NORMAL) {
 
-                log.info(
-                        "Skipping userId = {} because mode = {}",
-                        user.getId(),
-                        mode
+            log.info(
+                    "Skipping userId = {} because mode = {}",
+                    user.getId(),
+                    mode
                 );
 
                 continue;
             }
 
-            notificationService.generateMonthlySummaryResponse(user);
-            notificationService.sendFinancialSummary(user);
+            notificationService.generateAndStoreMonthlySummary(user);
 
             log.info(
                     "Monthly summary checked completed for userId = {}",

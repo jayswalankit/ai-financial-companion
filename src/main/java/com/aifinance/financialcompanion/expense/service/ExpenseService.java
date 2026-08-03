@@ -6,15 +6,20 @@ import com.aifinance.financialcompanion.entity.User;
 import com.aifinance.financialcompanion.exceptions.CategoryNotFoundException;
 import com.aifinance.financialcompanion.exceptions.ExpenseNotFoundException;
 import com.aifinance.financialcompanion.exceptions.InvalidDateRangeException;
+import com.aifinance.financialcompanion.exceptions.MonthlyBudgetException;
 import com.aifinance.financialcompanion.exceptions.UserNotFound;
 import com.aifinance.financialcompanion.expense.dto.CreateExpenseRequest;
 import com.aifinance.financialcompanion.expense.dto.ExpenseResponse;
 import com.aifinance.financialcompanion.expense.dto.UpdateExpenseRequest;
 import com.aifinance.financialcompanion.expense.entity.Expense;
 import com.aifinance.financialcompanion.expense.repo.ExpenseRepository;
+import com.aifinance.financialcompanion.budget.service.BudgetService;
 import com.aifinance.financialcompanion.notification.service.NotificationService;
 import com.aifinance.financialcompanion.repo.UserRepo;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
+import com.aifinance.financialcompanion.enums.NotificationSeverity;
+import com.aifinance.financialcompanion.report.dto.BudgetStatusResponse;
+import com.aifinance.financialcompanion.report.service.ReportService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +33,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Service
@@ -39,6 +45,8 @@ public class ExpenseService {
     private final CategoryRepository categoryRepository;
     private final ExpenseRepository expenseRepository;
     private final NotificationService notificationService;
+    private final ReportService reportService;
+    private final BudgetService budgetService;
 
  @Transactional
      public ExpenseResponse createExpense(CreateExpenseRequest request, CustomUserDetails currentUser) {
@@ -47,6 +55,11 @@ public class ExpenseService {
         log.info("Creating expense for userId = {} , title = {} , categoryId = {}", userId, request.title(), request.categoryId());
 
         User user = getAuthenticatedUser(currentUser);
+
+        BigDecimal currentMonthBudget = budgetService.getCurrentMonthBudget(user);
+        if (currentMonthBudget.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new MonthlyBudgetException("Please set your monthly budget before adding an expense");
+        }
 
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Category is not found"));
@@ -65,20 +78,19 @@ public class ExpenseService {
                 user
         );
 
-        Expense savedExpense = expenseRepository.save(expense);
-        log.info("Expense created successfully. expenseId = {} , userId = {}", savedExpense.getId(), userId);
+     Expense savedExpense = expenseRepository.save(expense);
+     log.info("Expense created successfully. expenseId = {} , userId = {}", savedExpense.getId(), userId);
 
-     if (notificationService.shouldSendInstantNotification(currentUser)) {
+     BudgetStatusResponse budgetStatus = reportService.getBudgetStatus(currentUser);
 
-         notificationService.sendFinancialSummary(user);
-
-     } else {
-
-         log.info(
-                 "Silent mode enabled. Financial summary email skipped for userId={}",
-                 user.getId()
+     if ("CRITICAL".equals(budgetStatus.status())) {
+         notificationService.createNotification(
+                 currentUser,
+                 budgetStatus.advice(),
+                 NotificationSeverity.CRITICAL
          );
      }
+
         return mapToResponse(savedExpense);
     }
 
