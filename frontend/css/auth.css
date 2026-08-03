@@ -1,0 +1,70 @@
+/* ================= AUTH ================= */
+        #auth-screen{
+          min-height:100vh; display:flex; align-items:center; justify-content:center;
+          padding:24px; background:
+            radial-gradient(circle at 15% 15%, var(--jade-soft) 0%, transparent 45%),
+            var(--bg);
+        }
+        .auth-card{
+          width:100%; max-width:420px; background:var(--bg-card); border:1px solid var(--line);
+          border-radius:16px; padding:40px 36px; position:relative; overflow:hidden;
+        }
+        .auth-card::before{
+          content:''; position:absolute; top:0; left:0; right:0; height:4px;
+          background:repeating-linear-gradient(90deg, var(--jade) 0 10px, transparent 10px 18px);
+        }
+        .brand{display:flex; align-items:center; gap:10px; margin-bottom:28px;}
+        .brand-mark{
+          width:34px; height:34px; border-radius:8px; background:var(--jade); color:#fff;
+          display:flex; align-items:center; justify-content:center; font-family:var(--font-display);
+          font-weight:700; font-size:18px; flex-shrink:0;
+        }
+        .brand-name{font-family:var(--font-display); font-weight:600; font-size:19px; letter-spacing:.2px;}
+        .auth-card h1{font-family:var(--font-display); font-size:26px; font-weight:600; margin-bottom:6px;}
+        .auth-card .sub{color:var(--text-muted); font-size:13.5px; margin-bottom:26px; line-height:1.5;}
+        .field{margin-bottom:16px;}
+        .field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+        .field input, .field select{
+          width:100%; padding:11px 13px; border-radius:8px; border:1px solid var(--line);
+          background:var(--bg-sunk); color:var(--text); font-size:14.5px; transition:border-color .15s;
+        }
+        .field input:focus, .field select:focus{border-color:var(--jade); outline:none;}
+        .field .hint{font-size:11.5px; color:var(--text-muted); margin-top:5px; line-height:1.4;}
+        .field-otp-row{display:flex; gap:8px;}
+        .field-otp-row input{flex:1;}
+
+        .btn{
+          display:inline-flex; align-items:center; justify-content:center; gap:8px;
+          padding:11px 18px; border-radius:8px; border:1px solid transparent; font-weight:600; font-size:14px;
+          transition:transform .1s ease, background .15s, border-color .15s, opacity .15s;
+        }
+        .btn:active{transform:scale(.98);}
+        .btn-primary{background:var(--jade); color:#fff;}
+        .btn-primary:hover{background:var(--jade-deep);}
+        .btn-block{width:100%;}
+        .btn-ghost{background:transparent; border-color:var(--line); color:var(--text);}
+        .btn-ghost:hover{border-color:var(--jade);}
+        .btn-danger{background:var(--brick); color:#fff;}
+        .btn-sm{padding:7px 12px; font-size:12.5px; border-radius:7px;}
+        .btn-icon{padding:8px; border-radius:7px; background:transparent; border:1px solid var(--line);}
+        .btn[disabled]{opacity:.55; cursor:not-allowed;}
+
+        .auth-foot{margin-top:20px; text-align:center; font-size:13.5px; color:var(--text-muted);}
+        .auth-foot button{background:none; border:none; color:var(--jade); font-weight:600; padding:0;}
+        .auth-error{
+          background:var(--brick-soft); color:var(--brick); border:1px solid var(--brick);
+          padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.4;
+        }
+        .auth-success{
+          background:var(--jade-soft); color:var(--jade-deep); border:1px solid var(--jade);
+          padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.4;
+        }
+        .api-base-toggle{
+          position:fixed; bottom:16px; left:16px; right:16px; max-width:420px; margin:0 auto;
+          font-size:11.5px; color:var(--text-muted); display:flex; gap:8px; align-items:center;
+          background:var(--bg-card); border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+        }
+        .api-base-toggle input{flex:1; background:transparent; border:none; color:var(--text); font-family:var(--font-mono); font-size:11.5px;}
+        .api-base-toggle input:focus{outline:none;}
+        .api-dot{width:7px; height:7px; border-radius:50%; background:var(--brick); flex-shrink:0;}
+        .api-dot.ok{background:var(--jade);}

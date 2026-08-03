@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledger — Financial Companion</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/auth.css">
+    <link rel="stylesheet" href="./css/dashboard.css">
+    <link rel="stylesheet" href="./css/category.css">
+    <link rel="stylesheet" href="./css/expense.css">
+    <link rel="stylesheet" href="./css/reports.css">
+    <link rel="stylesheet" href="./css/budget.css">
+    <link rel="stylesheet" href="./css/notification.css">
+    <link rel="stylesheet" href="./css/settings.css">
+    <link rel="stylesheet" href="./css/modal.css">
+    <link rel="stylesheet" href="./css/responsive.css">
+</head>
+<body>
+
+<!-- ================= AUTH SCREEN ================= -->
+<div id="auth-screen">
+    <div class="auth-card">
+        <div class="brand"><div class="brand-mark">L</div><div class="brand-name">Ledger</div></div>
+
+        <!-- LOGIN -->
+        <div id="view-login" class="auth-view">
+            <h1>Welcome back</h1>
+            <p class="sub">Sign in to keep tracking where your money goes.</p>
+            <div id="login-msg"></div>
+            <div class="field"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com"></div>
+            <div class="field"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"></div>
+            <button class="btn btn-primary btn-block" id="btn-login">Sign in</button>
+            <p class="auth-foot">New here? <button data-go="signup">Create an account</button></p>
+            <p class="auth-foot"><button data-go="forgot">Forgot password?</button></p>
+        </div>
+
+        <!-- SIGNUP -->
+        <div id="view-signup" class="auth-view hidden">
+            <h1>Create your account</h1>
+            <p class="sub">Set up Ledger — we'll send a one-time code to verify your email.</p>
+            <div id="signup-msg"></div>
+            <div class="field"><label>Username</label><input type="text" id="signup-username" placeholder="jane_doe"></div>
+            <div class="field"><label>Email</label><input type="email" id="signup-email" placeholder="you@example.com"></div>
+            <div class="field"><label>Password</label><input type="password" id="signup-password" placeholder="At least 9 characters">
+                <div class="hint">Minimum 9 characters.</div>
+            </div>
+            <button class="btn btn-primary btn-block" id="btn-signup">Send verification code</button>
+            <p class="auth-foot">Already have an account? <button data-go="login">Sign in</button></p>
+        </div>
+
+        <!-- VERIFY SIGNUP OTP -->
+        <div id="view-verify" class="auth-view hidden">
+            <h1>Check your email</h1>
+            <p class="sub">Enter the 6-digit code we sent to <strong id="verify-email-label"></strong>.</p>
+            <div id="verify-msg"></div>
+            <div class="field"><label>Verification code</label><input type="text" maxlength="6" id="verify-otp" placeholder="000000"></div>
+            <button class="btn btn-primary btn-block" id="btn-verify">Verify & continue</button>
+            <p class="auth-foot"><button id="btn-resend-signup">Resend code</button></p>
+            <p class="auth-foot"><button data-go="login">Back to sign in</button></p>
+        </div>
+
+        <!-- FORGOT PASSWORD -->
+        <div id="view-forgot" class="auth-view hidden">
+            <h1>Reset your password</h1>
+            <p class="sub">Enter your account email — we'll send you a code to reset it.</p>
+            <div id="forgot-msg"></div>
+            <div class="field"><label>Email</label><input type="email" id="forgot-email" placeholder="you@example.com"></div>
+            <button class="btn btn-primary btn-block" id="btn-forgot">Send reset code</button>
+            <p class="auth-foot"><button data-go="login">Back to sign in</button></p>
+        </div>
+
+        <!-- RESET PASSWORD (after otp) -->
+        <div id="view-reset" class="auth-view hidden">
+            <h1>Set a new password</h1>
+            <p class="sub">Enter the code sent to <strong id="reset-email-label"></strong> and your new password.</p>
+            <div id="reset-msg"></div>
+            <div class="field"><label>Reset code</label><input type="text" maxlength="6" id="reset-otp" placeholder="000000"></div>
+            <div class="field"><label>New password</label><input type="password" id="reset-newpass">
+                <div class="hint">Needs uppercase, lowercase, a number, a special character (@#$%^&+=!), min 8 characters.</div>
+            </div>
+            <div class="field"><label>Confirm password</label><input type="password" id="reset-confirmpass"></div>
+            <button class="btn btn-primary btn-block" id="btn-reset">Update password</button>
+            <p class="auth-foot"><button data-go="login">Back to sign in</button></p>
+        </div>
+    </div>
+
+    <div class="api-base-toggle">
+        <span class="api-dot" id="api-dot"></span>
+        <input type="text" id="api-base-input" value="http://localhost:8080" spellcheck="false">
+        <button class="btn btn-ghost btn-sm" id="btn-check-api">Check</button>
+    </div>
+</div>
+
+<!-- ================= APP SHELL ================= -->
+<div id="app">
+    <button class="btn-icon mobile-menu-btn" id="btn-open-sidebar" style="position:fixed;top:14px;left:16px;z-index:60;">☰</button>
+    <aside class="sidebar" id="sidebar">
+        <div class="brand"><div class="brand-mark">L</div><div class="brand-name">Ledger</div></div>
+        <ul class="nav-list">
+            <li><button class="nav-item" data-page="dashboard"><span class="ic">◆</span> Dashboard</button></li>
+            <li><button class="nav-item" data-page="categories"><span class="ic">▤</span> Categories</button></li>
+            <li><button class="nav-item" data-page="records"><span class="ic">☰</span> Records</button></li>
+            <li><button class="nav-item" data-page="reports"><span class="ic">▲</span> Reports</button></li>
+            <li><button class="nav-item" data-page="budget"><span class="ic">◐</span> Budget</button></li>
+            <li><button class="nav-item" data-page="notifications"><span class="ic">◔</span> Notifications</button></li>
+            <li><button class="nav-item" data-page="settings"><span class="ic">⚙</span> Settings</button></li>
+        </ul>
+        <div class="sidebar-foot">
+            <div class="user-chip">
+                <div class="avatar" id="sidebar-avatar">?</div>
+                <div class="info"><div class="name" id="sidebar-name">—</div><div class="mail" id="sidebar-email">—</div></div>
+            </div>
+            <button class="btn btn-ghost btn-block btn-sm" style="margin-top:10px;" id="btn-logout">Sign out</button>
+        </div>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <div><h2 id="page-title">Dashboard</h2><div class="sub" id="page-sub">Your spending, at a glance</div></div>
+            <div class="topbar-actions">
+                <button class="btn-icon" id="btn-dark-toggle" title="Toggle dark mode">◐</button>
+                <button class="btn btn-primary btn-sm" id="btn-quick-add">+ Add expense</button>
+            </div>
+        </header>
+        <main class="content" id="content"></main>
+    </div>
+
+    <nav class="bottom-nav">
+        <button data-page="dashboard"><span class="ic">◆</span>Home</button>
+        <button data-page="records"><span class="ic">☰</span>Records</button>
+        <button data-page="reports"><span class="ic">▲</span>Reports</button>
+        <button data-page="budget"><span class="ic">◐</span>Budget</button>
+        <button data-page="settings"><span class="ic">⚙</span>Settings</button>
+    </nav>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast-wrap"></div>
+
+<script src="./js/config.js"></script>
+<script src="./js/storage.js"></script>
+<script src="./js/utils.js"></script>
+<script src="./js/api.js"></script>
+<script src="./js/modal.js"></script>
+<script src="./js/auth.js"></script>
+<script src="./js/dashboard.js"></script>
+<script src="./js/category.js"></script>
+<script src="./js/expense.js"></script>
+<script src="./js/reports.js"></script>
+<script src="./js/budget.js"></script>
+<script src="./js/notification.js"></script>
+<script src="./js/settings.js"></script>
+<script src="./js/app.js"></script>
+</body>
+</html>
