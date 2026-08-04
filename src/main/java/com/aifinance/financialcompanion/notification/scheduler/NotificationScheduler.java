@@ -21,8 +21,7 @@ public class NotificationScheduler {
     private final NotificationService notificationService;
     private final UserContextService userContextService;
 
-//    @Scheduled(cron = "0 0 22 * * *")
-      @Scheduled(cron = "0 46 13 * * *")
+    @Scheduled(cron = "0 0 22 * * *", zone = "Asia/Kolkata")
        public void generateDailySummaries(){
 
 

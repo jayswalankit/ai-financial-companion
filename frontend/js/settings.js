@@ -17,7 +17,7 @@
 
           <div class="card">
             <h3>Preferences</h3><div class="card-sub">Mode and notification behaviour</div>
-            <div class="field"><label>App mode</label>
+            <div class="field"><label>App mode <span id="pref-mode-active" class="badge badge-jade">Active: ${prefs.userMode === 'NORMAL' ? 'Default' : prefs.userMode === 'CUSTOM' ? 'Custom mode' : escapeHtml(prefs.userMode.charAt(0) + prefs.userMode.slice(1).toLowerCase())}</span></label>
               <select id="pref-mode">
                 <option value="NORMAL" ${prefs.userMode==='NORMAL'?'selected':''}>Default</option>
                 <option value="TRIP" ${prefs.userMode==='TRIP'?'selected':''}>Trip</option>
@@ -43,18 +43,25 @@
         state.theme = e.target.checked ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', state.theme);
       });
+      $('#pref-mode').addEventListener('change', () => {
+        const selectedMode = $('#pref-mode').value;
+        const modeLabels = {NORMAL:'Default', TRIP:'Trip', MEDICAL:'Medical', CUSTOM:'Custom mode'};
+        $('#pref-mode-active').textContent = `Active: ${modeLabels[selectedMode]}`;
+        renderCustomModesList(selectedMode);
+      });
       $('#btn-save-prefs').addEventListener('click', async () => {
         const userMode = $('#pref-mode').value;
         const notificationMode = $('#toggle-notif').checked ? 'NORMAL' : 'SILENT';
         try{
           state.preferences = await api('/api/preferences', {method:'PUT', body:{userMode, notificationMode}});
           toast('Preferences saved.');
+          renderCustomModesList(userMode);
         }catch(e){ toast(e.message,'err'); }
       });
       $('#btn-add-mode').addEventListener('click', () => openCustomModeModal());
       renderCustomModesList();
     }
-    async function renderCustomModesList(){
+    async function renderCustomModesList(selectedMode = $('#pref-mode')?.value || state.preferences?.userMode){
       const wrap = $('#custom-modes-list');
       let modes, active;
       try{
@@ -63,19 +70,25 @@
       }catch(e){ wrap.innerHTML = errorPanel(e.message, renderCustomModesList); return; }
       state.customModes = modes;
       if(!modes.length){ wrap.innerHTML = `<div class="empty-state"><div class="ic">⚙</div><p>No custom modes yet. Create one for situations like travel or a strict savings sprint.</p></div>`; return; }
+      const customModeIsSelected = selectedMode === 'CUSTOM';
       wrap.innerHTML = modes.map(m => `
         <div class="opt-row">
-          <div><div class="opt-label">${escapeHtml(m.modeName)} ${active && active.modeId===m.id ? '<span class="badge badge-jade">Active</span>' : ''}</div>
+          <div><div class="opt-label">${escapeHtml(m.modeName)} ${customModeIsSelected && active && active.modeId===m.id ? '<span class="badge badge-jade">Active</span>' : ''}</div>
             <div class="opt-desc">Notifications: ${m.notificationMode === 'NORMAL' ? 'Normal' : 'Silent'}</div></div>
           <div class="row-actions">
-            ${!(active && active.modeId===m.id) ? `<button class="btn btn-ghost btn-sm" data-activate="${m.id}">Activate</button>` : ''}
+            ${!(customModeIsSelected && active && active.modeId===m.id) ? `<button class="btn btn-ghost btn-sm" data-activate="${m.id}">Activate</button>` : ''}
             <button class="btn-icon" data-edit-mode="${m.id}" title="Edit">✎</button>
             <button class="btn-icon" data-del-mode="${m.id}" title="Delete">🗑</button>
           </div>
         </div>
       `).join('');
       $all('[data-activate]', wrap).forEach(b => b.addEventListener('click', async () => {
-        try{ await api(`/api/custom-modes/${b.dataset.activate}/activate`, {method:'PUT'}); toast('Custom mode activated.'); renderCustomModesList(); }
+        try{
+          await api(`/api/custom-modes/${b.dataset.activate}/activate`, {method:'PUT'});
+          state.preferences = {...(state.preferences || {}), userMode:'CUSTOM'};
+          toast('Custom mode activated.');
+          renderSettings();
+        }
         catch(e){ toast(e.message,'err'); }
       }));
       $all('[data-edit-mode]', wrap).forEach(b => b.addEventListener('click', () => openCustomModeModal(modes.find(m=>String(m.id)===b.dataset.editMode))));
