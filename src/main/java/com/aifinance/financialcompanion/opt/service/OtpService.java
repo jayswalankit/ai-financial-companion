@@ -33,8 +33,11 @@ public class OtpService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${spring.mail.username}")
+    @Value("${MAIL_FROM:}")
     private String fromEmail;
+
+    @Value("${spring.mail.username}")
+    private String mailUsername;
 
     // for generating random otp...
     private String generateRandomOtp(){
@@ -108,12 +111,19 @@ public class OtpService {
             """, plainOtp);
 
         emailService.sendSimpleEmail(
-                fromEmail,
+                resolveFromEmail(),
                 email,
                 subject,
                 body,
                 "OTP"
         );
+    }
+
+    private String resolveFromEmail() {
+        if (fromEmail != null && !fromEmail.isBlank()) {
+            return fromEmail.trim();
+        }
+        return mailUsername;
     }
     @Transactional
     public OtpResponse verifyOtp(VerifyOtpRequest request){

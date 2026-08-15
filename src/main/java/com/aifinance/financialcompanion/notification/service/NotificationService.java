@@ -44,8 +44,11 @@ public class NotificationService {
     private final UserContextService userContextService;
     private final EmailService emailService;
 
-    @Value("${spring.mail.username}")
+    @Value("${MAIL_FROM:}")
     private String fromEmail;
+
+    @Value("${spring.mail.username}")
+    private String mailUsername;
     @Transactional
     public NotificationResponse createNotification(CustomUserDetails currentUser, String message, NotificationSeverity severity){
 
@@ -297,13 +300,20 @@ public class NotificationService {
     }
 
     private void sendEmail(User user,String subject, String body) {
-        emailService.sendSimpleEmail(
-                fromEmail,
+        emailService.sendSimpleEmailAsync(
+                resolveFromEmail(),
                 user.getEmail(),
                 subject,
                 body,
                 "notification"
         );
+    }
+
+    private String resolveFromEmail() {
+        if (fromEmail != null && !fromEmail.isBlank()) {
+            return fromEmail.trim();
+        }
+        return mailUsername;
     }
 
     @Transactional(readOnly = true)

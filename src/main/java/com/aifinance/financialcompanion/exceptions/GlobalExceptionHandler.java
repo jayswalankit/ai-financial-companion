@@ -337,6 +337,23 @@ public class GlobalExceptionHandler {
     }
 
     // =========================================================
+    // EMAIL DELIVERY FAILURE
+    // =========================================================
+
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<ErrorResponse> handleEmailDeliveryFailure(
+            EmailDeliveryException exception
+    ) {
+        log.error("Email delivery failed: {}", exception.getMessage(), exception);
+
+        return buildError(
+                HttpStatus.BAD_GATEWAY,
+                "Email Delivery Failed",
+                "OTP email could not be sent right now. Please try again in a moment."
+        );
+    }
+
+    // =========================================================
     // INVALID ENDPOINT / 404
     // =========================================================
 

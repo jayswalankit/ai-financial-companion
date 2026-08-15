@@ -67,6 +67,8 @@
         const res = await api('/api/auth/verify-signup', {method:'POST', auth:false, body:{email: state.pendingSignupEmail, otp, purpose:'SIGNUP'}});
         state.token = res.token;
         state.user = {username: res.username, email: res.email, role: res.role};
+        clearAuthDraft();
+        state.pendingSignupEmail = null;
         saveSession();
         await afterLogin();
       }catch(e){
