@@ -58,6 +58,9 @@ spring:
             enable: true
           starttls:
             enable: false
+          connectiontimeout: ${MAIL_CONNECTION_TIMEOUT:5000}
+          timeout: ${MAIL_TIMEOUT:5000}
+          writetimeout: ${MAIL_WRITE_TIMEOUT:5000}
 
 # ── Actuator (restrict in prod) ───────────
 management:

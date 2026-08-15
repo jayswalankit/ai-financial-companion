@@ -6,6 +6,7 @@ import com.aifinance.financialcompanion.exceptions.InvalidOtpException;
 import com.aifinance.financialcompanion.exceptions.OtpExpiredException;
 import com.aifinance.financialcompanion.exceptions.OtpNotFoundException;
 import com.aifinance.financialcompanion.exceptions.UserNotFound;
+import com.aifinance.financialcompanion.mail.service.EmailService;
 import com.aifinance.financialcompanion.opt.dto.OtpResponse;
 import com.aifinance.financialcompanion.opt.dto.SendOtpRequest;
 import com.aifinance.financialcompanion.opt.dto.VerifyOtpRequest;
@@ -15,8 +16,6 @@ import com.aifinance.financialcompanion.repo.UserRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +30,7 @@ public class OtpService {
 
     private final OtpRepo otpRepo;
     private final UserRepo userRepo;
-    private final JavaMailSender javaMailSender;
+    private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${spring.mail.username}")
@@ -73,7 +72,7 @@ public class OtpService {
                 .build();
 
         otpRepo.save(otp);
-        sendOtpEmail(email,plainOtp,purpose);
+        sendOtpEmail(email, plainOtp, purpose);
         log.info("Otp sent successfully for {}", email);
 
         return new OtpResponse(true,
@@ -108,14 +107,13 @@ public class OtpService {
             Do not share this OTP with anyone.
             """, plainOtp);
 
-        SimpleMailMessage message = new SimpleMailMessage();
-
-        message.setFrom(fromEmail);
-        message.setTo(email);
-        message.setSubject(subject);
-        message.setText(body);
-
-        javaMailSender.send(message);
+        emailService.sendSimpleEmail(
+                fromEmail,
+                email,
+                subject,
+                body,
+                "OTP"
+        );
     }
     @Transactional
     public OtpResponse verifyOtp(VerifyOtpRequest request){

@@ -5,6 +5,7 @@ import com.aifinance.financialcompanion.entity.User;
 import com.aifinance.financialcompanion.enums.NotificationMode;
 import com.aifinance.financialcompanion.enums.NotificationSeverity;
 import com.aifinance.financialcompanion.exceptions.UserNotFound;
+import com.aifinance.financialcompanion.mail.service.EmailService;
 import com.aifinance.financialcompanion.notification.dto.DailySummaryResponse;
 import com.aifinance.financialcompanion.notification.dto.MonthlySummaryResponse;
 import com.aifinance.financialcompanion.notification.dto.NotificationResponse;
@@ -20,8 +21,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +42,7 @@ public class NotificationService {
     private final ReportService reportService;
     private final BudgetService budgetService;
     private final UserContextService userContextService;
-    private final JavaMailSender mailSender;
+    private final EmailService emailService;
 
     @Value("${spring.mail.username}")
     private String fromEmail;
@@ -298,22 +297,13 @@ public class NotificationService {
     }
 
     private void sendEmail(User user,String subject, String body) {
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(user.getEmail());
-            message.setSubject(subject);
-            message.setText(body);
-
-            mailSender.send(message);
-
-            log.info(
-                    "Email sent successfully to {}",
-                    user.getEmail()
-            );
-        } catch (Exception e) {
-           log.error("Failed to send email to {}",user.getEmail(),e);
-        }
+        emailService.sendSimpleEmail(
+                fromEmail,
+                user.getEmail(),
+                subject,
+                body,
+                "notification"
+        );
     }
 
     @Transactional(readOnly = true)
