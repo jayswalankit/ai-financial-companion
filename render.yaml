@@ -1,20 +1,10 @@
-# ─────────────────────────────────────────────────────────
-# Render.com Blueprint — AI Financial Companion
-#
-# Steps:
-# 1. Push your code to GitHub
-# 2. Go to render.com → New → Blueprint
-# 3. Connect your repo → Deploy
-# 4. Set secret env vars in Render dashboard (marked with sync: false)
-# ─────────────────────────────────────────────────────────
-
 services:
   - type: web
     name: ai-financial-companion
     runtime: docker
     dockerfilePath: ./Dockerfile
-    region: singapore          # change if needed: oregon, frankfurt, ohio
-    plan: starter              # free / starter / standard
+    region: singapore
+    plan: starter
     healthCheckPath: /api/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
@@ -31,23 +21,13 @@ services:
         fromDatabase:
           name: financial-db
           property: password
-      - key: REDIS_HOST
+      - key: REDIS_URL
         fromService:
           name: financial-redis
           type: redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          name: financial-redis
-          type: redis
-          property: port
-      - key: REDIS_PASSWORD
-        fromService:
-          name: financial-redis
-          type: redis
-          property: password
+          property: connectionString
       - key: APP_JWT_SECRET
-        sync: false            # Set manually in Render dashboard
+        sync: false
       - key: MAIL_USERNAME
         sync: false
       - key: MAIL_APP_PASSWORD
@@ -59,7 +39,7 @@ databases:
   - name: financial-db
     databaseName: financial_companion
     user: financial_app
-    plan: starter              # free tier available
+    plan: starter
 
   - name: financial-redis
-    plan: starter              # Render managed Redis
+    plan: starter
