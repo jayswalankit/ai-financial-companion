@@ -344,12 +344,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleEmailDeliveryFailure(
             EmailDeliveryException exception
     ) {
-        log.error("Email delivery failed: {}", exception.getMessage(), exception);
+        Throwable cause = exception.getCause();
+        String causeMessage = cause != null && cause.getMessage() != null
+                ? cause.getMessage()
+                : exception.getMessage();
+
+        log.error("Email delivery failed: {}", causeMessage, exception);
 
         return buildError(
                 HttpStatus.BAD_GATEWAY,
                 "Email Delivery Failed",
-                "OTP email could not be sent right now. Please try again in a moment."
+                causeMessage
         );
     }
 
