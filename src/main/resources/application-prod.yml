@@ -45,19 +45,19 @@ spring:
       time-to-live: 600000   # 10 minutes default TTL
 
   # ── Mail ─────────────────────────────────
-  mail:
-    host: smtp.gmail.com
-    port: 465
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_APP_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          ssl:
-            enable: true
-          starttls:
-            enable: false
+mail:
+  host: smtp-relay.brevo.com
+  port: 587
+  username: ${MAIL_USERNAME}
+  password: ${MAIL_APP_PASSWORD}
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true
+        ssl:
+          enable: false
 
 # ── Actuator (restrict in prod) ───────────
 management:
