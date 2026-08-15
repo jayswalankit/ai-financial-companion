@@ -33,6 +33,12 @@
     $('#api-base-input').value = state.apiBase;
     checkApiHealth();
 
+    const authDraft = readAuthDraft();
+    if(authDraft){
+      state.pendingSignupEmail = authDraft.pendingSignupEmail;
+      state.pendingResetEmail = authDraft.pendingResetEmail;
+    }
+
     (async function restoreSession(){
       const session = readSession();
       if(!session) return;

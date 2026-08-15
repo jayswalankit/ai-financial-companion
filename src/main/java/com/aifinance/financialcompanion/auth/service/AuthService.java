@@ -47,19 +47,18 @@ public class AuthService {
     @Transactional
     public RegisterResponse register (RegisterRequest request) {
 
-        log.info("Signup request received for email: {}");
+        log.info("Signup request received for email: {}", request.email());
 
         String email = request.email().trim().toLowerCase();
 
             if (userRepo.findByEmail(email).isPresent()) {
 
-                log.warn("Signup failed - email already exists: {}");
+                log.warn("Signup failed - email already exists: {}", email);
               throw new  EmailAlreadyExistException ("Email already exist ");
             }
 
-            pendingSignupRepository.deleteByEmail(email);
-
-            PendingSignup pendingSignup = new PendingSignup();
+            PendingSignup pendingSignup = pendingSignupRepository.findByEmail(email)
+                    .orElseGet(PendingSignup::new);
             pendingSignup.setUsername(request.username().trim());
             pendingSignup.setEmail(email);
             pendingSignup.setPasswordHash(passwordEncoder.encode(request.password()));

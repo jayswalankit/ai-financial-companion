@@ -77,6 +77,9 @@ public class SecurityConfig {
                         // Authentication APIs
                         .requestMatchers("/api/auth/**").permitAll()
 
+                        // OTP APIs
+                        .requestMatchers("/api/otp/**").permitAll()
+
                         // Health APIs
                         .requestMatchers(
                                 "/health",

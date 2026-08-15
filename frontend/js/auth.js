@@ -50,6 +50,7 @@
       try{
         await api('/api/auth/signup', {method:'POST', auth:false, body:{username,email,password}});
         state.pendingSignupEmail = email;
+        saveAuthDraft();
         $('#verify-email-label').textContent = email;
         showAuthView('verify');
       }catch(e){
@@ -75,6 +76,14 @@
 
     $('#btn-resend-signup').addEventListener('click', async () => {
       try{
+        if(!state.pendingSignupEmail){
+          const draft = readAuthDraft();
+          state.pendingSignupEmail = draft?.pendingSignupEmail || null;
+        }
+        if(!state.pendingSignupEmail){
+          toast('Please enter your email again and send signup code first.', 'err');
+          return;
+        }
         await api('/api/otp/resend', {method:'POST', auth:false, body:{email: state.pendingSignupEmail}, params:{purpose:'SIGNUP'}});
         toast('Verification code resent.');
       }catch(e){ toast(e.message,'err'); }
@@ -126,7 +135,10 @@
     }
     function doLogout(){
       clearSession();
+      clearAuthDraft();
       state.token = null; state.user = null; state.categories = []; state.preferences = null; state.insightsCache = null;
+      state.pendingSignupEmail = null;
+      state.pendingResetEmail = null;
       $('#app').classList.remove('active');
       $('#auth-screen').style.display = 'flex';
       showAuthView('login');
