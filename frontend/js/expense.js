@@ -118,6 +118,10 @@
 
     /* ================= EXPENSE MODAL (shared: quick add / records / dashboard) ================= */
     function openExpenseModal(expense=null, onSaved=null){
+      if(state.expenseSaveInProgress){
+        toast('Your expense is still saving. Please wait.', 'err');
+        return;
+      }
       const isEdit = !!expense;
       if(!state.categories.length){
         toast('Create a category first before adding expenses.', 'err');
@@ -141,7 +145,9 @@
         const catMatch = state.categories.find(c => c.name === expense.categoryName);
         if(catMatch) $('#exp-category').value = catMatch.id;
       }
+      let isSaving = false;
       $('#btn-save-exp').addEventListener('click', async () => {
+        if(isSaving || state.expenseSaveInProgress) return;
         const title = $('#exp-title').value.trim();
         const amount = parseFloat($('#exp-amount').value);
         const categoryId = $('#exp-category').value;
@@ -149,11 +155,28 @@
         const description = $('#exp-desc').value.trim();
         if(!title || !amount || amount <= 0 || !categoryId || !expenseDate){ toast('Fill in title, amount, category and date.', 'err'); return; }
         const body = { title, amount, description, expenseDate, categoryId: Number(categoryId) };
+        const saveButton = $('#btn-save-exp');
+        isSaving = true;
+        state.expenseSaveInProgress = true;
+        saveButton.disabled = true;
+        saveButton.textContent = 'Savingâ€¦';
+        $all('#modal-root input, #modal-root select, #modal-root textarea').forEach(control => control.disabled = true);
         try{
-          if(isEdit){ await api('/api/expenses/' + expense.id, {method:'PUT', body}); toast('Expense updated.'); }
-          else{ await api('/api/expenses', {method:'POST', body}); toast('Expense added.'); }
+          const savedExpense = isEdit
+            ? await api('/api/expenses/' + expense.id, {method:'PUT', body})
+            : await api('/api/expenses', {method:'POST', body});
+          toast(isEdit ? 'Expense updated.' : 'Expense added.');
           closeModal();
-          if(onSaved) onSaved(); else if(state.page==='dashboard') renderDashboard();
-        }catch(e){ toast(e.message,'err'); }
+          if(onSaved) await onSaved(savedExpense);
+          else if(state.page==='dashboard') await renderDashboard();
+          state.expenseSaveInProgress = false;
+        }catch(e){
+          isSaving = false;
+          state.expenseSaveInProgress = false;
+          saveButton.disabled = false;
+          saveButton.textContent = isEdit ? 'Save changes' : 'Add expense';
+          $all('#modal-root input, #modal-root select, #modal-root textarea').forEach(control => control.disabled = false);
+          toast(e.message,'err');
+        }
       });
     }

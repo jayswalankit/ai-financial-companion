@@ -32,3 +32,20 @@
 /* ================= BOOT ================= */
     $('#api-base-input').value = state.apiBase;
     checkApiHealth();
+
+    (async function restoreSession(){
+      const session = readSession();
+      if(!session) return;
+
+      state.token = session.token;
+      state.user = session.user;
+
+      try{
+        const currentUser = await api('/api/users/me');
+        state.user = {...state.user, username: currentUser.username, email: currentUser.email};
+        saveSession();
+        await afterLogin();
+      }catch(e){
+        doLogout();
+      }
+    })();

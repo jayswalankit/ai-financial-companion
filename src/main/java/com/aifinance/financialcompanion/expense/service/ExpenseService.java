@@ -14,12 +14,9 @@ import com.aifinance.financialcompanion.expense.dto.UpdateExpenseRequest;
 import com.aifinance.financialcompanion.expense.entity.Expense;
 import com.aifinance.financialcompanion.expense.repo.ExpenseRepository;
 import com.aifinance.financialcompanion.budget.service.BudgetService;
-import com.aifinance.financialcompanion.notification.service.NotificationService;
 import com.aifinance.financialcompanion.repo.UserRepo;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
-import com.aifinance.financialcompanion.enums.NotificationSeverity;
-import com.aifinance.financialcompanion.report.dto.BudgetStatusResponse;
-import com.aifinance.financialcompanion.report.service.ReportService;
+import com.aifinance.financialcompanion.expense.event.ExpenseCreatedEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +29,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -44,9 +42,8 @@ public class ExpenseService {
     private final UserRepo userRepo;
     private final CategoryRepository categoryRepository;
     private final ExpenseRepository expenseRepository;
-    private final NotificationService notificationService;
-    private final ReportService reportService;
     private final BudgetService budgetService;
+    private final ApplicationEventPublisher eventPublisher;
 
  @Transactional
      public ExpenseResponse createExpense(CreateExpenseRequest request, CustomUserDetails currentUser) {
@@ -81,15 +78,7 @@ public class ExpenseService {
      Expense savedExpense = expenseRepository.save(expense);
      log.info("Expense created successfully. expenseId = {} , userId = {}", savedExpense.getId(), userId);
 
-     BudgetStatusResponse budgetStatus = reportService.getBudgetStatus(currentUser);
-
-     if ("CRITICAL".equals(budgetStatus.status())) {
-         notificationService.createNotification(
-                 currentUser,
-                 budgetStatus.advice(),
-                 NotificationSeverity.CRITICAL
-         );
-     }
+     eventPublisher.publishEvent(new ExpenseCreatedEvent(userId));
 
         return mapToResponse(savedExpense);
     }

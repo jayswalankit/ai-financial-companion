@@ -10,6 +10,7 @@ const state = {
   page: 'dashboard',
   pendingSignupEmail: null,
   pendingResetEmail: null,
+  expenseSaveInProgress: false,
   recordsFilter: { keyword:'', categoryId:'', startDate:'', endDate:'', page:0, size:10, categoryLock:null, dateFromSearch:false },
   reportsTab: 'weekly', // weekly | monthly | custom
   reportsView: 'bar', // bar | donut | trend | stats | table

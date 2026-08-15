@@ -15,9 +15,8 @@
     async function checkApiHealth(){
       const dot = $('#api-dot');
       try{
-        await fetch(state.apiBase.replace(/\/$/,'') + '/api/auth/login', {method:'OPTIONS'}).catch(()=>{});
-        // We can't reliably "ping" without an open endpoint; just assume reachable if fetch didn't throw a network error.
-        const r = await fetch(state.apiBase.replace(/\/$/,'') + '/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email:'',password:''})});
+        const r = await fetch(state.apiBase.replace(/\/$/,'') + '/api/health');
+        if(!r.ok) throw new Error('API health check failed');
         dot.classList.add('ok');
       }catch(e){
         dot.classList.remove('ok');
@@ -34,6 +33,7 @@
         const res = await api('/api/auth/login', {method:'POST', auth:false, body:{email,password}});
         state.token = res.token;
         state.user = {username: res.username, email: res.email, role: res.role};
+        saveSession();
         await afterLogin();
       }catch(e){
         authMsg('#login-msg', e.message);
@@ -66,6 +66,7 @@
         const res = await api('/api/auth/verify-signup', {method:'POST', auth:false, body:{email: state.pendingSignupEmail, otp, purpose:'SIGNUP'}});
         state.token = res.token;
         state.user = {username: res.username, email: res.email, role: res.role};
+        saveSession();
         await afterLogin();
       }catch(e){
         authMsg('#verify-msg', e.message);
@@ -124,6 +125,7 @@
       goPage('dashboard');
     }
     function doLogout(){
+      clearSession();
       state.token = null; state.user = null; state.categories = []; state.preferences = null; state.insightsCache = null;
       $('#app').classList.remove('active');
       $('#auth-screen').style.display = 'flex';

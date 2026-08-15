@@ -55,13 +55,10 @@ public class CustomModeController {
             @AuthenticationPrincipal
             CustomUserDetails currentUser){
 
-        ActiveCustomModeResponse response =
-                customModeService
-                        .getActiveCustomMode(
-                                currentUser
-                        );
-
-        return ResponseEntity.ok(response);
+        return customModeService
+                .getActiveCustomMode(currentUser)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @DeleteMapping("/{modeId}")

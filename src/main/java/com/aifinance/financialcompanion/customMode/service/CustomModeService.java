@@ -14,13 +14,13 @@ import com.aifinance.financialcompanion.preference.entity.UserPreference;
 import com.aifinance.financialcompanion.preference.repo.UserPreferenceRepo;
 import com.aifinance.financialcompanion.repo.UserRepo;
 import com.aifinance.financialcompanion.security.userDetails.CustomUserDetails;
-import jdk.dynalink.linker.LinkerServices;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -194,7 +194,7 @@ public class CustomModeService {
     }
 
     @Transactional(readOnly = true)
-    public ActiveCustomModeResponse getActiveCustomMode(
+    public Optional<ActiveCustomModeResponse> getActiveCustomMode(
             CustomUserDetails currentUser){
 
         User user = getAuthenticatedUser(currentUser);
@@ -204,20 +204,17 @@ public class CustomModeService {
 
         if(preference == null
                 || preference.getActiveCustomMode() == null){
-
-            throw new RuntimeException(
-                    "No active custom mode found"
-            );
+            return Optional.empty();
         }
 
         CustomMode customMode =
                 preference.getActiveCustomMode();
 
-        return new ActiveCustomModeResponse(
+        return Optional.of(new ActiveCustomModeResponse(
                 customMode.getId(),
                 customMode.getModeName(),
                 customMode.getNotificationMode()
-        );
+        ));
     }
 
     private User getAuthenticatedUser(CustomUserDetails currentUser){
