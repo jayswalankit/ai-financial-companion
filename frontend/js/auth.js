@@ -33,7 +33,7 @@
       try{
         const res = await api('/api/auth/login', {method:'POST', auth:false, body:{email,password}});
         state.token = res.token;
-        state.user = {username: res.username, email: res.email};
+        state.user = {username: res.username, email: res.email, role: res.role};
         await afterLogin();
       }catch(e){
         authMsg('#login-msg', e.message);
@@ -65,7 +65,7 @@
       try{
         const res = await api('/api/auth/verify-signup', {method:'POST', auth:false, body:{email: state.pendingSignupEmail, otp, purpose:'SIGNUP'}});
         state.token = res.token;
-        state.user = {username: res.username, email: res.email};
+        state.user = {username: res.username, email: res.email, role: res.role};
         await afterLogin();
       }catch(e){
         authMsg('#verify-msg', e.message);

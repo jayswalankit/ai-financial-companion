@@ -50,18 +50,21 @@ public class OtpService {
     @Transactional
     public OtpResponse sendOtp(SendOtpRequest request, OtpPurpose purpose){
 
-        User user = userRepo.findByEmail(request.email())
-                .orElseThrow(()->new UserNotFound("User  not found"));
+        String email = request.email().trim().toLowerCase();
 
-        // yaha pe if else use karke exist check nhi kiye kyu ki isse 2 queries chlti db me....
-        otpRepo.deleteByEmailAndPurpose(user.getEmail(),purpose);
+        if (purpose != OtpPurpose.SIGNUP) {
+            userRepo.findByEmail(email)
+                    .orElseThrow(() -> new UserNotFound("User not found"));
+        }
+
+        otpRepo.deleteByEmailAndPurpose(email, purpose);
 
         String plainOtp = generateRandomOtp();
 
         String encodedOtp = passwordEncoder.encode(plainOtp);
 
         OtpVerification otp = OtpVerification.builder()
-                .email(user.getEmail())
+                .email(email)
                 .otp(encodedOtp)
                 .purpose(purpose)
                 .expiresAt(LocalDateTime.now().plusMinutes(5))
@@ -70,8 +73,8 @@ public class OtpService {
                 .build();
 
         otpRepo.save(otp);
-        sendOtpEmail(user.getEmail(),plainOtp,purpose);
-        log.info("Otp send Successfully for{}",user.getEmail());
+        sendOtpEmail(email,plainOtp,purpose);
+        log.info("Otp sent successfully for {}", email);
 
         return new OtpResponse(true,
                 "Opt sent Successfully");

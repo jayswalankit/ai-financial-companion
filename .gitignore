@@ -35,6 +35,8 @@ build/
 ## 🔐 Spring config (IMPORTANT)
 application*.yaml
 application*.yml
+.env
+.env.*
 
 ## 🔐 Logs
 logs/

@@ -6,6 +6,7 @@ import com.aifinance.financialcompanion.category.dto.UpdateCategoryRequest;
 import com.aifinance.financialcompanion.category.entity.Category;
 import com.aifinance.financialcompanion.category.repo.CategoryRepository;
 import com.aifinance.financialcompanion.entity.User;
+import com.aifinance.financialcompanion.enums.Role;
 import com.aifinance.financialcompanion.exceptions.CategoryNotFoundException;
 import com.aifinance.financialcompanion.exceptions.DuplicateCategoryName;
 import com.aifinance.financialcompanion.expense.repo.ExpenseRepository;
@@ -32,9 +33,14 @@ public class CategoryService {
     @Transactional
             public  CategoryResponse createCategory(CreateCategoryRequest request, CustomUserDetails currentUser) {
 
-        User user = getAuthenticatedUser(currentUser);
-        String normalizedName  = request.name().trim();
-        log.info("Creating category for userId = {},CategoryName = {}, CategoryType = {}", user.getId(), request.name(), request.type());
+       User user = getAuthenticatedUser(currentUser);
+       String normalizedName  = request.name().trim();
+       boolean predefined = request.predefined();
+       log.info("Creating category for userId = {},CategoryName = {}, CategoryType = {}", user.getId(), request.name(), request.type());
+
+       if (predefined && user.getRole() != Role.ADMIN) {
+           throw new AccessDeniedException("Only admins can create categories for all users");
+       }
 
        if(categoryRepository.existsByPredefinedTrueAndNameIgnoreCase(normalizedName)){
            log.warn("Category cannot created due to the predefined name conflict for userId = {}, categoryName = {}",user.getId(),normalizedName);
@@ -49,7 +55,7 @@ public class CategoryService {
        Category category = new Category(
                normalizedName,
                request.type(),
-               false,
+               predefined,
                user
        );
 

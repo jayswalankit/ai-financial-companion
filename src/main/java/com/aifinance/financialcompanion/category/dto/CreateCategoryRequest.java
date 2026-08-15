@@ -10,6 +10,8 @@ public record CreateCategoryRequest(
         String name ,
 
         @NotNull(message = "Type is required")
-        CategoryType type
+        CategoryType type,
+
+        boolean predefined
 ) {
 }

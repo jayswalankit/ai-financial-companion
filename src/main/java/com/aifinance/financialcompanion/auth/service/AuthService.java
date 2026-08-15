@@ -1,6 +1,8 @@
 package com.aifinance.financialcompanion.auth.service;
 
 import com.aifinance.financialcompanion.auth.dto.*;
+import com.aifinance.financialcompanion.auth.entity.PendingSignup;
+import com.aifinance.financialcompanion.auth.repo.PendingSignupRepository;
 import com.aifinance.financialcompanion.entity.User;
 import com.aifinance.financialcompanion.enums.OtpPurpose;
 import com.aifinance.financialcompanion.enums.Role;
@@ -16,8 +18,10 @@ import com.aifinance.financialcompanion.security.jwt.JwtService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -28,15 +32,19 @@ public class AuthService {
     private final  AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final OtpService otpService;
+    private final PendingSignupRepository pendingSignupRepository;
 
 
-    public AuthService(UserRepo userRepo, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtService jwtService,OtpService otpService) {
+    public AuthService(UserRepo userRepo, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtService jwtService, OtpService otpService, PendingSignupRepository pendingSignupRepository) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
-        this.otpService = otpService;    }
+        this.otpService = otpService;
+        this.pendingSignupRepository = pendingSignupRepository;
+    }
 
+    @Transactional
     public RegisterResponse register (RegisterRequest request) {
 
         log.info("Signup request received for email: {}");
@@ -49,24 +57,23 @@ public class AuthService {
               throw new  EmailAlreadyExistException ("Email already exist ");
             }
 
-            User user = new User();
-            user.setUsername(request.username());
-            user.setEmail(email);
-            user.setPassword(passwordEncoder.encode(request.password()));
-            user.setRole(Role.USER);
-            user.setEmailVerified(false);
+            pendingSignupRepository.deleteByEmail(email);
 
-            userRepo.save(user);
+            PendingSignup pendingSignup = new PendingSignup();
+            pendingSignup.setUsername(request.username().trim());
+            pendingSignup.setEmail(email);
+            pendingSignup.setPasswordHash(passwordEncoder.encode(request.password()));
+            pendingSignupRepository.save(pendingSignup);
 
         log.info(
-                "User registered successfully. userId={}",
-                user.getId()
+                "Signup pending email verification for {}",
+                email
         );
 
-        otpService.sendOtp(new SendOtpRequest(user.getEmail()), OtpPurpose.SIGNUP);
-        log.info("User registered successfully: {}");
+        otpService.sendOtp(new SendOtpRequest(email), OtpPurpose.SIGNUP);
+        log.info("Signup OTP sent to {}", email);
 
-            return  new RegisterResponse("User registered successfully", user.getEmail());
+            return  new RegisterResponse("Verification code sent", email);
     }
 
     public AuthResponse login(LoginRequest request){
@@ -80,24 +87,42 @@ public class AuthService {
         User user = userRepo.findByEmail(email)
                 .orElseThrow(()->new UserNotFound("User not found "));
 
+        if (!user.isEmailVerified()) {
+            throw new BadCredentialsException("Email verification is required");
+        }
+
         CustomUserDetails userDetails = new CustomUserDetails(user);
         String token = jwtService.generateToken(userDetails);
 
         return new  AuthResponse(
                 token,
                 user.getUsername(),
-                user.getEmail()
+                user.getEmail(),
+                user.getRole().name()
         );
     }
 
+    @Transactional
     public AuthResponse verifySignup(VerifyOtpRequest request){
-        otpService.verifyOtp(request);
+        String email = request.email().trim().toLowerCase();
+        otpService.verifyOtp(new VerifyOtpRequest(email, request.otp(), request.purpose()));
 
-        User user = userRepo.findByEmail(request.email()).orElseThrow(
-                ()->new UserNotFound("User not  found")
-        );
+        PendingSignup pendingSignup = pendingSignupRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFound("No pending signup found for this email"));
+
+        if (userRepo.findByEmail(email).isPresent()) {
+            throw new EmailAlreadyExistException("Email already exists");
+        }
+
+        User user = new User();
+        user.setUsername(pendingSignup.getUsername());
+        user.setEmail(pendingSignup.getEmail());
+        user.setPassword(pendingSignup.getPasswordHash());
+        user.setRole(Role.USER);
         user.setEmailVerified(true);
         userRepo.save(user);
+        pendingSignupRepository.delete(pendingSignup);
+        otpService.deleteOtp(email, OtpPurpose.SIGNUP);
 
         CustomUserDetails userDetails = new CustomUserDetails(user);
 
@@ -106,7 +131,8 @@ public class AuthService {
         return new AuthResponse(
                 token,
                 user.getUsername(),
-                user.getEmail()
+                user.getEmail(),
+                user.getRole().name()
         );
     }
 

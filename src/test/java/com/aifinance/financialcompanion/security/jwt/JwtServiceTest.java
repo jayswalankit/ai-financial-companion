@@ -21,7 +21,7 @@ public class JwtServiceTest {
 
     @Test
     void testTokenIsValid(){
-        UserDetails userDetails = customUserDetailsService.loadUserByUsername("Ankitjayswal950@gmail.com");
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername("test@example.com");
 
         String token = jwtService.generateToken(userDetails);
 
@@ -34,7 +34,7 @@ public class JwtServiceTest {
 
     @Test
     void testTokenExpiration() throws InterruptedException {
-        UserDetails userDetails = customUserDetailsService.loadUserByUsername("Ankitjayswal950@gmail.com");
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername("test@example.com");
 
         String token = jwtService.generateToken(userDetails);
 
