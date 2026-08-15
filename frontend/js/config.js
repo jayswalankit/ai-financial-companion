@@ -1,6 +1,13 @@
 /* ---------------- STATE ---------------- */
+function resolveDefaultApiBase() {
+  if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null') {
+    return window.location.origin;
+  }
+  return 'http://localhost:8080';
+}
+
 const state = {
-  apiBase: 'http://localhost:8080',
+  apiBase: resolveDefaultApiBase(),
   token: null,
   user: null, // {username, email}
   categories: [],
