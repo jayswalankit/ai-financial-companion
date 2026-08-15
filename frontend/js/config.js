@@ -1,7 +1,18 @@
 /* ---------------- STATE ---------------- */
 function resolveDefaultApiBase() {
   if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null') {
-    return window.location.origin;
+    const origin = window.location.origin;
+    const isLocalFrontend =
+      origin.includes('localhost:63342') ||
+      origin.includes('127.0.0.1:63342') ||
+      origin.includes('localhost:5500') ||
+      origin.includes('127.0.0.1:5500');
+
+    if (isLocalFrontend) {
+      return 'http://localhost:8080';
+    }
+
+    return origin;
   }
   return 'http://localhost:8080';
 }
