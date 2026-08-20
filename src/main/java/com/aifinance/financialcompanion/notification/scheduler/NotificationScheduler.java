@@ -66,7 +66,7 @@ public class NotificationScheduler {
     log.info("Daily Summary Scheduler Completed");
 }
 
-    @Scheduled(cron = "0 46 13 * * *")
+    @Scheduled(cron = "0 46 13 * * *", zone = "Asia/Kolkata")
 
     public void generateMonthlySummaries() {
 

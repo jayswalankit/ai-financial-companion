@@ -152,7 +152,8 @@ public class SecurityConfig {
                 "http://localhost:63342",
                 "http://127.0.0.1:63342",
                 "http://localhost:5500",
-                "http://127.0.0.1:5500"
+                "http://127.0.0.1:5500",
+                "https://ai-financial-companion.onrender.com"
         ));
 
         configuration.setAllowedMethods(List.of(

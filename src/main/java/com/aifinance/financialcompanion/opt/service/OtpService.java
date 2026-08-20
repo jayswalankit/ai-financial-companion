@@ -110,7 +110,7 @@ public class OtpService {
             Do not share this OTP with anyone.
             """, plainOtp);
 
-        emailService.sendSimpleEmail(
+        emailService.sendSimpleEmailAsync(
                 resolveFromEmail(),
                 email,
                 subject,
