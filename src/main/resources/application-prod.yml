@@ -12,10 +12,10 @@ spring:
     name: financial-companion
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/financial_companion}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/financial_companion}
     username: ${DB_USERNAME:financial_app}
     password: ${DB_PASSWORD:}
-    driver-class-name: org.postgresql.Driver
+    driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
