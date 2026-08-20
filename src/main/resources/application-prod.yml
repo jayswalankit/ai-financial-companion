@@ -49,7 +49,7 @@ spring:
   mail:
     # If you want a separate sender address, set MAIL_FROM; otherwise Gmail username is used.
     host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
+    port: ${MAIL_PORT:2525}
     username: ${MAIL_USERNAME}
     password: ${MAIL_APP_PASSWORD}
     properties:
