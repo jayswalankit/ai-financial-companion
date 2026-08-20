@@ -24,4 +24,4 @@ COPY --from=build /workspace/target/*.jar /app/app.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["sh", "-c", "export DB_URL=jdbc:${DB_URL#jdbc:}; exec java -jar /app/app.jar"]

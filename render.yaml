@@ -4,7 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     region: singapore
-    plan: starter
+    plan: free
     healthCheckPath: /api/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
@@ -24,22 +24,22 @@ services:
       - key: REDIS_URL
         fromService:
           name: financial-redis
-          type: redis
+          type: keyvalue
           property: connectionString
       - key: APP_JWT_SECRET
-        sync: false
-      - key: MAIL_USERNAME
-        sync: false
-      - key: MAIL_APP_PASSWORD
-        sync: false
+        generateValue: true
       - key: JPA_DDL_AUTO
         value: update
+
+  - type: keyvalue
+    name: financial-redis
+    region: singapore
+    plan: free
+    ipAllowList: []
 
 databases:
   - name: financial-db
     databaseName: financial_companion
     user: financial_app
-    plan: starter
-
-  - name: financial-redis
-    plan: starter
+    region: singapore
+    plan: free
