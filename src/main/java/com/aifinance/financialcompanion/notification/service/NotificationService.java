@@ -47,8 +47,8 @@ public class NotificationService {
     @Value("${MAIL_FROM:}")
     private String fromEmail;
 
-    @Value("${spring.mail.username}")
-    private String mailUsername;
+    @Value("${app.email.from:}")
+    private String configuredFromEmail;
     @Transactional
     public NotificationResponse createNotification(CustomUserDetails currentUser, String message, NotificationSeverity severity){
 
@@ -313,7 +313,7 @@ public class NotificationService {
         if (fromEmail != null && !fromEmail.isBlank()) {
             return fromEmail.trim();
         }
-        return mailUsername;
+        return configuredFromEmail;
     }
 
     @Transactional(readOnly = true)

@@ -36,8 +36,8 @@ public class OtpService {
     @Value("${MAIL_FROM:}")
     private String fromEmail;
 
-    @Value("${spring.mail.username}")
-    private String mailUsername;
+    @Value("${app.email.from:}")
+    private String configuredFromEmail;
 
     // for generating random otp...
     private String generateRandomOtp(){
@@ -123,7 +123,7 @@ public class OtpService {
         if (fromEmail != null && !fromEmail.isBlank()) {
             return fromEmail.trim();
         }
-        return mailUsername;
+        return configuredFromEmail;
     }
     @Transactional
     public OtpResponse verifyOtp(VerifyOtpRequest request){

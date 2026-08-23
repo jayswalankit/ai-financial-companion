@@ -2,6 +2,13 @@ app:
   jwt:
     secret: ${APP_JWT_SECRET}
     expiration: ${APP_JWT_EXPIRATION:86400000}
+  # Transactional email is sent through Resend's HTTPS API, not SMTP. This works
+  # on Render free instances and Railway Free/Trial/Hobby plans, where SMTP is blocked.
+  email:
+    resend-api-key: ${RESEND_API_KEY:}
+    resend-api-url: ${RESEND_API_URL:https://api.resend.com/emails}
+    from: ${MAIL_FROM:${RESEND_FROM:}}
+    timeout: ${EMAIL_API_TIMEOUT:10000}
 
 server:
   port: ${PORT:8080}
@@ -29,7 +36,9 @@ spring:
   # ── Redis Cache ──────────────────────────
   data:
     redis:
-#      url: ${REDIS_URL:}
+      # Render and Railway provide a redis:// connection string. Without this,
+      # the configured REDIS_URL is ignored and the app tries localhost.
+      url: ${REDIS_URL}
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
@@ -45,25 +54,6 @@ spring:
     redis:
       time-to-live: 600000   # 10 minutes default TTL
 
-  # ── Mail ─────────────────────────────────
-  mail:
-    # If you want a separate sender address, set MAIL_FROM; otherwise Gmail username is used.
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:2525}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_APP_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: ${MAIL_STARTTLS_ENABLE:true}
-          ssl:
-            enable: ${MAIL_SSL_ENABLE:false}
-            trust: ${MAIL_SSL_TRUST:}
-          connectiontimeout: ${MAIL_CONNECTION_TIMEOUT:5000}
-          timeout: ${MAIL_TIMEOUT:5000}
-          writetimeout: ${MAIL_WRITE_TIMEOUT:5000}
 
 # ── Actuator (restrict in prod) ───────────
 management:

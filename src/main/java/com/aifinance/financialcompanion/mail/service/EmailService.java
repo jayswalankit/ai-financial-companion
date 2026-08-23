@@ -3,11 +3,18 @@ package com.aifinance.financialcompanion.mail.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.aifinance.financialcompanion.exceptions.EmailDeliveryException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -15,7 +22,16 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    private final ObjectMapper objectMapper;
+
+    @Value("${app.email.resend-api-key:}")
+    private String resendApiKey;
+
+    @Value("${app.email.resend-api-url:https://api.resend.com/emails}")
+    private String resendApiUrl;
+
+    @Value("${app.email.timeout:10000}")
+    private long timeoutMs;
 
     public void sendSimpleEmail(
             String fromEmail,
@@ -63,16 +79,44 @@ public class EmailService {
             String body,
             String logLabel
     ) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        if (fromEmail != null && !fromEmail.isBlank()) {
-            message.setFrom(fromEmail.trim());
+        if (resendApiKey == null || resendApiKey.isBlank()) {
+            throw new IllegalStateException("RESEND_API_KEY is not configured");
         }
-        message.setTo(toEmail);
-        message.setSubject(subject);
-        message.setText(body);
+        if (fromEmail == null || fromEmail.isBlank()) {
+            throw new IllegalStateException("MAIL_FROM (or RESEND_FROM) is not configured");
+        }
 
-        mailSender.send(message);
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "from", fromEmail.trim(),
+                    "to", new String[]{toEmail},
+                    "subject", subject,
+                    "text", body
+            ));
+            HttpRequest request = HttpRequest.newBuilder(URI.create(resendApiUrl))
+                    .timeout(Duration.ofMillis(timeoutMs))
+                    .header("Authorization", "Bearer " + resendApiKey.trim())
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+            HttpResponse<String> response = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofMillis(timeoutMs))
+                    .build()
+                    .send(request, HttpResponse.BodyHandlers.ofString());
 
-        log.info("{} email sent to {}", logLabel, toEmail);
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("Resend API returned HTTP " + response.statusCode()
+                        + ": " + response.body());
+            }
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Could not serialize email request", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Email API request was interrupted", e);
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not send email through Resend HTTPS API", e);
+        }
+
+        log.info("{} email accepted by Resend for {}", logLabel, toEmail);
     }
 }

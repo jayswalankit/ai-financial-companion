@@ -28,9 +28,9 @@ services:
           property: connectionString
       - key: APP_JWT_SECRET
         sync: false
-      - key: MAIL_USERNAME
+      - key: RESEND_API_KEY
         sync: false
-      - key: MAIL_APP_PASSWORD
+      - key: MAIL_FROM
         sync: false
       - key: JPA_DDL_AUTO
         value: update
