@@ -2,8 +2,6 @@ app:
   jwt:
     secret: ${APP_JWT_SECRET}
     expiration: ${APP_JWT_EXPIRATION:86400000}
-  # Transactional email is sent through Resend's HTTPS API, not SMTP. This works
-  # on Render free instances and Railway Free/Trial/Hobby plans, where SMTP is blocked.
   email:
     resend-api-key: ${RESEND_API_KEY:}
     resend-api-url: ${RESEND_API_URL:https://api.resend.com/emails}
@@ -19,9 +17,9 @@ spring:
     name: financial-companion
 
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/financial_companion}
-    username: ${DB_USERNAME:financial_app}
-    password: ${DB_PASSWORD:}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -29,19 +27,17 @@ spring:
       connection-timeout: 30000
 
   jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
     open-in-view: false
 
-  # ── Redis Cache ──────────────────────────
   data:
     redis:
-      # Render and Railway provide a redis:// connection string. Without this,
-      # the configured REDIS_URL is ignored and the app tries localhost.
       url: ${REDIS_URL}
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
       timeout: 5000ms
       lettuce:
         pool:
@@ -52,10 +48,8 @@ spring:
   cache:
     type: redis
     redis:
-      time-to-live: 600000   # 10 minutes default TTL
+      time-to-live: 600000
 
-
-# ── Actuator (restrict in prod) ───────────
 management:
   endpoints:
     web:
